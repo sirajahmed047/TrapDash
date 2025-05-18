@@ -1,0 +1,17 @@
+body {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #333; /* Dark grey background for the page body */
+}
+
+canvas {
+    display: block; /* Remove extra space below canvas */
+}
+
+#game-container canvas {
+    border: 1px solid white; /* Add a border to easily see the canvas */
+}
