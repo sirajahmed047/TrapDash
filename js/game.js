@@ -25,7 +25,9 @@ const game = new Phaser.Game(config);
 const PLAYER_SPEED_NORMAL = 250;
 const PLAYER_SPEED_BOOSTED = 400; // Increased boost
 const POWERUP_DURATION = 5000; // 5 seconds
+const POWERUP_RESPAWN_DELAY = 3000; // 3 seconds for power-up respawn
 const BOT_SPEED = 249;
+const BOT_SPEED_BOOSTED = 390; // Slightly less than player's boost
 const TRACK_WIDTH_MULTIPLIER = 7; // Race track will be 7 times the screen width
 const JUMP_VELOCITY = -300; // Negative for upward movement
 const BOT_JUMP_LOOKAHEAD_WALL = 95; // How far the bot "looks" ahead for walls (pixels)
@@ -99,7 +101,7 @@ function create() {
     this.player.body.setSize(32, 28).setOffset(0, 0);
     this.player.setCollideWorldBounds(true);
     this.player.body.setBounceX(0.05);
-    this.player.body.setVelocityX(PLAYER_SPEED_NORMAL);
+    this.player.body.setVelocityX(0); // Initially stationary
     this.player.lastSafeX = playerInitialX;
     this.player.respawnY = playerInitialY;
     this.player.isFalling = false;
@@ -117,10 +119,16 @@ function create() {
     this.bot.body.setSize(32, 28).setOffset(0, 0);
     this.bot.setCollideWorldBounds(true);
     this.bot.body.setBounceX(0.05);
-    this.bot.body.setVelocityX(BOT_SPEED);
+    this.bot.body.setVelocityX(0); // Initially stationary
     this.bot.lastSafeX = botInitialX;
     this.bot.respawnY = botInitialY;
     this.bot.isFalling = false;
+    // Power-up properties for bot
+    this.bot.activePowerup = null;
+    this.bot.powerupTimer = null;
+    this.bot.shieldActive = false;
+    this.bot.currentSpeed = BOT_SPEED;
+    this.bot.glowEffectGraphic = null;
 
     this.physics.add.collider(this.player, this.groundGroup);
     this.physics.add.collider(this.bot, this.groundGroup);
@@ -144,24 +152,25 @@ function create() {
         powerupIcon.setData('type', data.type);
     });
     this.physics.add.overlap(this.player, this.powerups, collectPowerup, null, this);
+    this.physics.add.overlap(this.bot, this.powerups, collectPowerup, null, this); // Bot can also collect
 
-    // Helper functions for player glow (defined as scene methods)
-    this.applyPlayerGlow = function(player, color) {
-        if (player.glowEffectGraphic) {
-            player.glowEffectGraphic.destroy();
+    // Helper functions for character glow (defined as scene methods)
+    this.applyCharacterGlow = function(character, color) {
+        if (character.glowEffectGraphic) {
+            character.glowEffectGraphic.destroy();
         }
-        const glowWidth = player.displayWidth + 15; 
-        const glowHeight = player.displayHeight + 15;
-        player.glowEffectGraphic = this.add.graphics();
-        player.glowEffectGraphic.fillStyle(color, 0.35); 
-        player.glowEffectGraphic.fillRoundedRect(-glowWidth / 2, -glowHeight / 2, glowWidth, glowHeight, 8);
-        player.glowEffectGraphic.setDepth(player.depth - 1); 
+        const glowWidth = character.displayWidth + 15;
+        const glowHeight = character.displayHeight + 15;
+        character.glowEffectGraphic = this.add.graphics();
+        character.glowEffectGraphic.fillStyle(color, 0.35);
+        character.glowEffectGraphic.fillRoundedRect(-glowWidth / 2, -glowHeight / 2, glowWidth, glowHeight, 8);
+        character.glowEffectGraphic.setDepth(character.depth - 1);
     };
 
-    this.removePlayerGlow = function(player) {
-        if (player.glowEffectGraphic) {
-            player.glowEffectGraphic.destroy();
-            player.glowEffectGraphic = null;
+    this.removeCharacterGlow = function(character) {
+        if (character.glowEffectGraphic) {
+            character.glowEffectGraphic.destroy();
+            character.glowEffectGraphic = null;
         }
     };
 
@@ -179,7 +188,26 @@ function create() {
 
     this.cursors = this.input.keyboard.createCursorKeys();
     this.restartKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
-    this.isPlayerFinished = false;
+    
+    // Game state flags
+    this.gameStarted = false;
+    this.gameOver = false;
+    this.playerWon = null; // true for player, false for bot
+    this.isPlayerFinished = false; // Already present, ensure it's initialized for clarity
+    this.isBotFinished = false; 
+
+    // Text objects
+    this.startText = null;
+    this.endGameTextObjects = [];
+
+    // Display "Press SPACE to start"
+    // Camera might not be fully initialized here for centerX/Y, so use config width/height for initial placement
+    const initialCenterX = this.game.config.width / 2;
+    const initialCenterY = this.game.config.height / 2;
+    this.startText = this.add.text(initialCenterX, initialCenterY, 'Press SPACE to start game', {
+        fontSize: '32px', fill: '#fff', backgroundColor: '#0005',
+        padding: { left: 15, right: 15, top: 10, bottom: 10 }
+    }).setOrigin(0.5).setScrollFactor(0); // scrollFactor 0 to stay in place
 
     // Walls Obstacles
     this.walls = this.physics.add.staticGroup();
@@ -195,33 +223,76 @@ function create() {
     this.physics.add.collider(this.bot, this.walls, handleBotHitObstacle, null, this);
 }
 
+// Function to display end-of-game messages
+function displayEndOfGameMessage(sceneContext) {
+    // Clear previous end game messages if any (Phaser might do this on scene restart, but good for clarity)
+    sceneContext.endGameTextObjects.forEach(textObj => textObj.destroy());
+    sceneContext.endGameTextObjects = [];
+
+    const cam = sceneContext.cameras.main;
+    const centerX = cam.worldView.x + cam.width / 2; // Use camera's current view for messages
+    const centerY = cam.worldView.y + cam.height / 2;
+
+    let winnerText = "";
+    if (sceneContext.playerWon === true) {
+        winnerText = "Player Wins!";
+    } else if (sceneContext.playerWon === false) {
+        winnerText = "Bot Wins!";
+    } else {
+        winnerText = "Race Over!"; // Should not happen with current logic
+    }
+
+    const textStyle = { fontSize: '32px', fill: '#fff', backgroundColor: '#0008', padding: {left: 10, right: 10, top:5, bottom:5} };
+    const restartTextStyle = { fontSize: '24px', fill: '#fff', backgroundColor: '#0008', padding: {left: 10, right: 10, top:5, bottom:5} };
+
+    let msg1 = sceneContext.add.text(centerX, centerY - 40, winnerText, textStyle).setOrigin(0.5);
+    let msg2 = sceneContext.add.text(centerX, centerY + 10, 'Press R to Restart', restartTextStyle).setOrigin(0.5);
+    
+    sceneContext.endGameTextObjects.push(msg1, msg2);
+}
+
 function handlePlayerFinish(player, finishLine) {
-    if (this.isPlayerFinished) return;
-    console.log("Player finished!");
-    this.isPlayerFinished = true;
+    if (this.gameOver) return; // Game already decided
+
+    this.isPlayerFinished = true; // Mark player as finished
     player.body.setVelocity(0,0);
     player.body.setAcceleration(0,0);
     player.body.allowGravity = false;
     this.cameras.main.stopFollow();
-    if (player.glowEffectGraphic) { // Stop glow on finish
-        this.removePlayerGlow(player);
+    if (player.glowEffectGraphic) { this.removeCharacterGlow(player); }
+
+    if (!this.isBotFinished) { // Player is the first to cross (or effectively simultaneous if bot finishes in same frame later)
+        this.playerWon = true;
+        this.gameOver = true;
+        displayEndOfGameMessage(this);
+    } else if (this.playerWon === null) { // Bot finished in a previous frame, now player finishes
+        // This case implies bot already won if playerWon is still null. Message already displayed by bot.
+        // Just ensure player stops correctly. Game is already over.
     }
-    const centerX = this.cameras.main.worldView.x + this.cameras.main.width / 2;
-    const centerY = this.cameras.main.worldView.y + this.cameras.main.height / 2;
-    this.add.text(centerX, centerY - 50, 'You Finished!', { fontSize: '32px', fill: '#fff', backgroundColor: '#0008' }).setOrigin(0.5);
-    this.add.text(centerX, centerY + 0, 'Press R to Restart', { fontSize: '24px', fill: '#fff', backgroundColor: '#0008' }).setOrigin(0.5);
 }
 
 function handleBotFinish(bot, finishLine) {
-    console.log("Bot finished!");
-    bot.body.setVelocityX(0);
+    if (this.gameOver) return; // Game already decided
+
+    this.isBotFinished = true; // Mark bot as finished
+    bot.body.setVelocityX(0); // Stop the bot
+    if (bot.glowEffectGraphic) { this.removeCharacterGlow(bot); }
+
+    if (!this.isPlayerFinished) { // Bot is the first to cross
+        this.playerWon = false;
+        this.gameOver = true;
+        displayEndOfGameMessage(this);
+    } else if (this.playerWon === null) { // Player finished in a previous frame, now bot finishes
+        // This case implies player already won. Message already displayed by player.
+        // Just ensure bot stops correctly. Game is already over.
+    }
 }
 
 function handlePlayerHitObstacle(player, wall) {
     if (player.shieldActive) {
         player.shieldActive = false;
         player.activePowerup = null;
-        this.removePlayerGlow(player); // Correctly uses scene context
+        this.removeCharacterGlow(player); // Correctly uses scene context
         console.log("Player hit obstacle, shield absorbed!");
         return;
     }
@@ -229,7 +300,19 @@ function handlePlayerHitObstacle(player, wall) {
 }
 
 function handleBotHitObstacle(bot, wall) {
-    console.log("Bot hit obstacle!");
+    if (bot.shieldActive) {
+        bot.shieldActive = false;
+        bot.activePowerup = null;
+        this.removeCharacterGlow(bot);
+        console.log("Bot hit obstacle, shield absorbed!");
+        return;
+    }
+    console.log("Bot hit obstacle! Attempting reactive jump.");
+    // If the bot is on the floor, make it jump
+    if (bot.body.onFloor()) {
+        bot.body.setVelocityY(JUMP_VELOCITY);
+    }
+    // If it hits a wall mid-air, this jump won't trigger, physics will resolve.
 }
 
 function handlePlayerFall(player) {
@@ -247,7 +330,7 @@ function handlePlayerFall(player) {
     player.activePowerup = null;
     player.shieldActive = false;
     player.currentSpeed = PLAYER_SPEED_NORMAL;
-    this.removePlayerGlow(player); // Correctly uses scene context
+    this.removeCharacterGlow(player); // Correctly uses scene context
 
     this.time.delayedCall(2000, () => {
         player.setPosition(player.lastSafeX, player.respawnY);
@@ -267,6 +350,17 @@ function handleBotFall(bot) {
     bot.setVisible(false);
     bot.body.setEnable(false);
     bot.body.setVelocity(0, 0);
+
+    // Reset bot's power-ups on fall
+    if (bot.powerupTimer) {
+        bot.powerupTimer.remove(false);
+        bot.powerupTimer = null;
+    }
+    bot.activePowerup = null;
+    bot.shieldActive = false;
+    bot.currentSpeed = BOT_SPEED;
+    this.removeCharacterGlow(bot);
+
     this.time.delayedCall(2000, () => {
         bot.setPosition(bot.lastSafeX, bot.respawnY);
         bot.setVisible(true);
@@ -278,50 +372,112 @@ function handleBotFall(bot) {
     }, [], this);
 }
 
-function collectPowerup(player, powerupIcon) {
+function collectPowerup(character, powerupIcon) {
     if (!powerupIcon.active) return;
     const type = powerupIcon.getData('type');
-    console.log(`Power-up collected: ${type}`);
+    console.log(`${character === this.player ? 'Player' : 'Bot'} collected power-up: ${type}`);
+    
+    // Store original position for respawn before disabling
+    // The powerupIcon object itself retains its x and y unless moved by physics (which it won't be once inactive)
+    const respawnX = powerupIcon.x;
+    const respawnY = powerupIcon.y;
+
     powerupIcon.disableBody(true, true);
 
-    this.removePlayerGlow(player); // Remove existing glow first
-    if (player.powerupTimer) {
-        player.powerupTimer.remove(false);
-        player.powerupTimer = null;
+    this.removeCharacterGlow(character); // Remove existing glow first
+    if (character.powerupTimer) {
+        character.powerupTimer.remove(false);
+        character.powerupTimer = null;
     }
-    player.shieldActive = false;
-    player.currentSpeed = PLAYER_SPEED_NORMAL;
-    player.activePowerup = type;
+    character.shieldActive = false;
+    // Determine normal speed based on character type
+    const normalSpeed = (character === this.player) ? PLAYER_SPEED_NORMAL : BOT_SPEED;
+    const boostedSpeed = (character === this.player) ? PLAYER_SPEED_BOOSTED : BOT_SPEED_BOOSTED;
+    character.currentSpeed = normalSpeed;
+    character.activePowerup = type;
 
     if (type === 'speed') {
-        player.currentSpeed = PLAYER_SPEED_BOOSTED;
-        this.applyPlayerGlow(player, 0xFFFF00); // Yellow glow. Uses scene context.
-        console.log("Speed Boost activated!");
-        player.powerupTimer = this.time.delayedCall(POWERUP_DURATION, () => {
-            if (player.activePowerup === 'speed') {
-                player.currentSpeed = PLAYER_SPEED_NORMAL;
-                player.activePowerup = null;
-                this.removePlayerGlow(player); // Uses scene context.
-                console.log("Speed Boost ended.");
+        character.currentSpeed = boostedSpeed;
+        this.applyCharacterGlow(character, 0xFFFF00); // Yellow glow
+        console.log(`${character === this.player ? 'Player' : 'Bot'} Speed Boost activated!`);
+        character.powerupTimer = this.time.delayedCall(POWERUP_DURATION, () => {
+            if (character.activePowerup === 'speed') {
+                character.currentSpeed = normalSpeed;
+                character.activePowerup = null;
+                this.removeCharacterGlow(character);
+                console.log(`${character === this.player ? 'Player' : 'Bot'} Speed Boost ended.`);
             }
         }, [], this);
     } else if (type === 'shield') {
-        player.shieldActive = true;
-        this.applyPlayerGlow(player, 0x00FF00); // Green glow. Uses scene context.
-        console.log("Shield activated!");
+        character.shieldActive = true;
+        this.applyCharacterGlow(character, 0x00FF00); // Green glow
+        console.log(`${character === this.player ? 'Player' : 'Bot'} Shield activated!`);
     }
+
+    // Schedule respawn
+    this.time.delayedCall(POWERUP_RESPAWN_DELAY, () => {
+        if (powerupIcon && !powerupIcon.active) { // Check if still exists and is inactive
+             // Check if another character is currently on the respawn spot
+            let canRespawn = true;
+            if (this.player && this.player.active && this.physics.overlap(this.player, {x: respawnX, y: respawnY, getBounds: () => new Phaser.Geom.Rectangle(respawnX - 16, respawnY - 16, 32, 32)})) {
+                canRespawn = false;
+            }
+            if (this.bot && this.bot.active && this.physics.overlap(this.bot, {x: respawnX, y: respawnY, getBounds: () => new Phaser.Geom.Rectangle(respawnX - 16, respawnY - 16, 32, 32)})) {
+                canRespawn = false;
+            }
+
+            if (canRespawn) {
+                powerupIcon.enableBody(true, respawnX, respawnY, true, true);
+                console.log(`Power-up respawned at (${respawnX}, ${respawnY})`);
+            } else {
+                // If spot is occupied, try again shortly
+                this.time.delayedCall(500, () => {
+                     if (powerupIcon && !powerupIcon.active) { // Re-check before respawning
+                        powerupIcon.enableBody(true, respawnX, respawnY, true, true);
+                        console.log(`Power-up respawned (delayed) at (${respawnX}, ${respawnY})`);
+                     }
+                }, [], this);
+            }
+        }
+    }, [], this);
 }
 
 function update() {
-    if (this.isPlayerFinished) {
+    if (this.gameOver) {
         if (Phaser.Input.Keyboard.JustDown(this.restartKey)) {
-            this.isPlayerFinished = false;
+            // Phaser's scene.restart() typically handles clearing display objects.
+            // Explicit cleanup of endGameTextObjects and startText done in create() upon restart.
             this.scene.restart();
         }
-        return;
+        return; // Don't process game updates if finished
     }
 
-    if (!this.player.isFalling) {
+    if (!this.gameStarted) {
+        if (this.startText && Phaser.Input.Keyboard.JustDown(this.cursors.space)) {
+            this.gameStarted = true;
+            if(this.startText) this.startText.destroy(); // Destroy if it exists
+            this.startText = null; // Clear reference
+
+            // Set initial speeds now that game has started
+            this.player.body.setVelocityX(this.player.currentSpeed);
+            this.bot.body.setVelocityX(this.bot.currentSpeed);
+        } else {
+            // Ensure player and bot are stationary before game starts
+            if (this.player && this.player.body) {
+                 this.player.body.setVelocityX(0);
+            }
+            if (this.bot && this.bot.body) {
+                this.bot.body.setVelocityX(0);
+            }
+        }
+        return; // Don't run game logic until started
+    }
+
+    // --- Main game update logic starts here ---
+    // (The following code will only run if gameStarted is true and gameOver is false)
+
+    // --- Player Fall/Respawn Logic ---
+    if (!this.player.isFalling) { // Only process if not already falling/respawning
         if (this.player.body.onFloor()) {
             this.player.lastSafeX = this.player.x;
         } else {
@@ -332,7 +488,7 @@ function update() {
     }
 
     if (!this.bot.isFalling) {
-        this.bot.body.setVelocityX(BOT_SPEED);
+        this.bot.body.setVelocityX(this.bot.currentSpeed); // Use bot's current speed
         if (this.bot.body.onFloor()) {
             this.bot.lastSafeX = this.bot.x;
             let shouldBotJump = false;
@@ -381,9 +537,14 @@ function update() {
         if (this.player.glowEffectGraphic && this.player.activePowerup) {
             this.player.glowEffectGraphic.setPosition(this.player.x, this.player.y);
         } else if (this.player.glowEffectGraphic && !this.player.activePowerup) {
-            // Ensure glow is removed if powerup became null by other means 
-            // (e.g. shield consumed and activePowerup set to null, then this frame runs)
-            this.removePlayerGlow(this.player); // Uses scene context.
+            this.removeCharacterGlow(this.player);
+        }
+
+        // Update bot glow position if active
+        if (this.bot.glowEffectGraphic && this.bot.activePowerup) {
+            this.bot.glowEffectGraphic.setPosition(this.bot.x, this.bot.y);
+        } else if (this.bot.glowEffectGraphic && !this.bot.activePowerup) {
+            this.removeCharacterGlow(this.bot);
         }
 
         if (this.cursors.space.isDown && this.player.body.onFloor()) {
