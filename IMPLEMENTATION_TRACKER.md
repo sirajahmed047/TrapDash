@@ -15,6 +15,7 @@ trapdash/
 │   ├── sounds/
 └── (Phaser.js linked via CDN in index.html)
 ```
+*Note: Refactoring completed (as of last user query). `js/Player.js`, `js/Bot.js`, `js/obstacles.js` (as ObstacleManager), and `js/powerups.js` (as PowerupManager) are now implemented, enhancing modularity and aligning with the optional advanced structure.* 
 
 ---
 
@@ -102,7 +103,6 @@ trapdash/
     *   [X] Player/Bot collides with walls: `this.physics.add.collider(this.player, this.walls);`.
 *   [X] **Obstacle Implementation (Gaps):**
     *   [X] Design track sections with gaps (no ground object in these areas). Player/bot must jump.
-    *   [ ] Add visual cues for gaps if desired (using `obstacle_gap_visual_cue.png`).
 *   [X] **Player-Obstacle Collision Response:**
     *   [X] Implement collision callback when player hits a "wall": `this.physics.add.collider(this.player, this.walls, handlePlayerHitObstacle, null, this);`.
 *   [X] **Bot-Obstacle Interaction Response:**
@@ -130,17 +130,73 @@ trapdash/
 
 **Phase 5: Game States and UI (Corresponds to Guide Step 7)**
 *   [ ] **UI Elements (Using Phaser Text or DOM elements):**
-    *   [ ] Implement position tracking display (e.g., `this.add.text(x, y, "Position: 1st", { fontSize: '16px', fill: '#fff' }).setScrollFactor(0);`).
-    *   [ ] Display current held power-up (e.g., `this.add.image(x, y, "powerupSpeedIconPH").setScrollFactor(0);`).
-*   [ ] **Game Flow & Scene Management (Using Phaser Scenes):**
-    *   [ ] Create separate scenes for Start Menu, Game Over, etc. (`class MainMenu extends Phaser.Scene { ... }`).
-    *   [ ] Add scenes to game config: `scene: [BootScene, MainMenuScene, GameScene, UIScene, GameOverScene]`.
-    *   [ ] Transition between scenes: `this.scene.start('GameOverScene');`.
-    *   [ ] Refine win/lose conditions and trigger scene transitions or UI updates.
+    *   [X] Implement Start Game prompt (e.g., 'Press Space to Start').
+    *   [X] Implement End Game prompt (e.g., 'Player/Bot Wins! Press R to Restart').
+    *   [X] Implement position tracking display (e.g., `this.add.text(x, y, "Position: 1st", { fontSize: '16px', fill: '#fff' }).setScrollFactor(0);`).
+*   [X] **Game Flow & Scene Management (Using Phaser Scenes):**
+    *   [X] Create separate scenes for Start Menu, Game Over, etc. (`class MainMenu extends Phaser.Scene { ... }`).
+    *   [X] Add scenes to game config: `scene: [BootScene, MainMenuScene, GameScene, UIScene, GameOverScene]`.
+    *   [X] Transition between scenes: `this.scene.start('GameOverScene');`.
+    *   [X] Refine win/lose conditions and trigger scene transitions or UI updates.
 *   [ ] **Sound Effects (Basic - using Phaser Audio):**
     *   [ ] Load sounds in `preload`: `this.load.audio('jumpSound', 'assets/sounds/jump.wav');`.
     *   [ ] Play sounds: `this.sound.play('jumpSound');`.
     *   [ ] Add sound for jump, power-up collection, collision.
+    *   *(User preference: Defer sound implementation for later)*
 
 ---
 (Optional sections for more advanced features like different bot levels, more power-ups, detailed scoring, etc., can be added later)
+
+**Phase 6: Visual Polish - Animations & Effects (Corresponds to update1.md - Step 1)**
+*   [ ] **Character Animations:**
+    *   [ ] Implement smooth run animation.
+    *   [ ] Implement jump animation.
+    *   [ ] Implement fall animation.
+    *   [ ] Implement hit animation (optional).
+*   [ ] **Particle Effects:**
+    *   [ ] Jump Dust.
+    *   [ ] Landing Dust/Impact.
+    *   [ ] Speed Boost Trail.
+    *   [ ] Shield Activation/Break visual.
+    *   [ ] Power-Up Collection burst.
+*   [ ] **Screen Shake:**
+    *   [ ] Implement subtle screen shake on obstacle hit or major events.
+
+**Phase 7: UI/UX Enhancements (Corresponds to update1.md - Step 2)**
+*   [ ] **Power-Up Indication:**
+    *   [ ] Implement timer bar or visual effect on player for active power-up duration.
+*   [ ] **Start Countdown:**
+    *   [ ] Implement "3... 2... 1... GO!" visual countdown.
+*   [ ] **Engaging Game Over Screen:**
+    *   [ ] Display final score/time.
+    *   [ ] Add clear "Retry" and "Main Menu" buttons.
+    *   [ ] Add "Well Done!" or "Try Again!" messages.
+
+**Phase 8: Scoring & Leaderboard (Corresponds to update1.md - Step 6)**
+*   [ ] **Refined Scoring System:**
+    *   [ ] Implement scoring based on distance, power-ups collected, opponents overtaken, time to finish.
+*   [ ] **Local Leaderboard:**
+    *   [ ] Prompt for name (3 initials) on high score.
+    *   [ ] Save top scores using browser `localStorage`.
+    *   [ ] Display leaderboard (Main Menu or separate scene).
+
+**Phase 9: Advanced Gameplay - Bot AI & Obstacles (Corresponds to update1.md - Steps 3 & 4)**
+*   [ ] **Advanced Bot AI:**
+    *   [ ] Implement smarter power-up usage strategy.
+    *   [ ] Refine obstacle avoidance (better timing, "mistakes").
+    *   [ ] Implement simple bot "personalities" (optional).
+*   [ ] **Dynamic Obstacles & Level Variety:**
+    *   [ ] Add moving obstacles (e.g., moving platforms).
+    *   [ ] Add "destructible" obstacles (visual effect only).
+    *   [ ] Implement varied obstacle patterns/chunks.
+    *   [ ] Add visual cues for gaps (e.g., using `obstacle_gap_visual_cue.png` - formerly in Phase 3).
+
+**Phase 10: New Power-Ups (Corresponds to update1.md - Step 5)**
+*   [ ] **Offensive Power-Up (Choose one or both):**
+    *   [ ] Implement Lightning Zap (Targeted).
+    *   [ ] Implement Droppable Trap.
+*   [ ] **Utility Power-Up:**
+    *   [ ] Implement Shuriken (bounces off walls).
+
+---
+*The "Mobile Wrapper (CapacitorJS)" consideration from update1.md can be reviewed after these phases progress.*
