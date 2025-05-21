@@ -43,6 +43,11 @@ class GameScene extends Phaser.Scene {
         this.physics.world.gravity.y = GameConfig.DEFAULT_GRAVITY;
         this.cameras.main.setBackgroundColor(GameConfig.SKY_COLOR);
 
+        // Enable physics debug drawing
+        this.physics.world.createDebugGraphic();
+        // Make sure debug is drawn for dynamic bodies too
+        this.physics.world.drawDebug = true;
+
         const TRACK_WIDTH = this.configWidth * GameConfig.TRACK_WIDTH_MULTIPLIER;
         this.groundTopY = this.configHeight - GameConfig.GROUND_Y_OFFSET;
         this.fallDeathY = this.groundTopY + GameConfig.GROUND_SEGMENT_HEIGHT + GameConfig.FALL_DEATH_Y_BUFFER;
@@ -55,11 +60,11 @@ class GameScene extends Phaser.Scene {
 
         // Player Instance
         const playerInitialY = this.groundTopY + GameConfig.PLAYER_RESPAWN_Y_OFFSET;
-        this.player = new Player(this, GameConfig.PLAYER_INITIAL_X, playerInitialY, "player_sprite", GameConfig.PLAYER_SPEED_NORMAL, GameConfig.PLAYER_SPEED_BOOSTED, GameConfig.JUMP_VELOCITY);
+        this.player = new Player(this, GameConfig.PLAYER_INITIAL_X, playerInitialY, "player_run_anim", GameConfig.PLAYER_SPEED_NORMAL, GameConfig.PLAYER_SPEED_BOOSTED, GameConfig.JUMP_VELOCITY);
 
         // Bot Instance
         const botInitialY = this.groundTopY + GameConfig.BOT_RESPAWN_Y_OFFSET;
-        this.bot = new Bot(this, GameConfig.BOT_INITIAL_X, botInitialY, "bot_sprite", GameConfig.BOT_SPEED_NORMAL, GameConfig.BOT_SPEED_BOOSTED, GameConfig.JUMP_VELOCITY);
+        this.bot = new Bot(this, GameConfig.BOT_INITIAL_X, botInitialY, "bot_run_anim", GameConfig.BOT_SPEED_NORMAL, GameConfig.BOT_SPEED_BOOSTED, GameConfig.JUMP_VELOCITY);
 
         // Power-ups (using functions from powerups.js)
         // Assuming createPowerups is globally available
