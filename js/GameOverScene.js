@@ -4,17 +4,14 @@ class GameOverScene extends Phaser.Scene {
     }
 
     init(data) {
-        console.log("GameOverScene: Init", data);
         this.winner = data.winner; // Expects { winner: 'Player' } or { winner: 'Bot' } or { winner: 'None' }
     }
 
     preload() {
-        console.log("GameOverScene: Preload");
         // Load assets for the game over screen if any (e.g., special fonts, buttons)
     }
 
     create() {
-        console.log("GameOverScene: Create");
         this.cameras.main.setBackgroundColor('#000000'); // Simple black background
 
         let winnerText = "Race Over!";

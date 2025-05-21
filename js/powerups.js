@@ -1,6 +1,3 @@
-const POWERUP_DURATION = 5000; // 5 seconds for power-up effects
-const POWERUP_RESPAWN_DELAY = 3000; // 3 seconds for power-up respawn
-
 // Define power-up locations (x-coordinate) and types
 // Y-coordinate will be calculated relative to groundTopY in createPowerups
 const POWERUP_DATA = [
@@ -35,7 +32,7 @@ function initiatePowerupRespawn(scene, powerupIcon) {
     const respawnX = powerupIcon.getData('originalX');
     const respawnY = powerupIcon.getData('originalY');
 
-    scene.time.delayedCall(POWERUP_RESPAWN_DELAY, () => {
+    scene.time.delayedCall(GameConfig.POWERUP_RESPAWN_DELAY, () => {
         if (powerupIcon && !powerupIcon.active) { // Check if still exists and is inactive
             // Check if another character is currently on the respawn spot (simple bounding box check)
             let canRespawn = true;
@@ -55,15 +52,12 @@ function initiatePowerupRespawn(scene, powerupIcon) {
 
             if (canRespawn) {
                 powerupIcon.enableBody(true, respawnX, respawnY, true, true);
-                // console.log(`Power-up respawned at (${respawnX}, ${respawnY})`);
             } else {
                 // If spot is occupied, try again shortly
-                // console.log(`Power-up respawn spot (${respawnX}, ${respawnY}) occupied, retrying.`);
                 scene.time.delayedCall(500, () => {
                      // Re-check before respawning, in case it was collected again or scene changed
                     if (powerupIcon && powerupIcon.scene && !powerupIcon.active ) { 
                         powerupIcon.enableBody(true, respawnX, respawnY, true, true);
-                        // console.log(`Power-up respawned (delayed) at (${respawnX}, ${respawnY})`);
                     }
                 }, [], scene);
             }

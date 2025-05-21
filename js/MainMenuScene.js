@@ -4,12 +4,10 @@ class MainMenuScene extends Phaser.Scene {
     }
 
     preload() {
-        console.log("MainMenuScene: Preload");
         // Load assets specific to the main menu (e.g., title, start button)
     }
 
     create() {
-        console.log("MainMenuScene: Create");
         // Add title text and start prompt
         this.add.text(this.cameras.main.width / 2, this.cameras.main.height / 2 - 50, 'TrapDash!', { fontSize: '48px', fill: '#fff' }).setOrigin(0.5);
         this.startText = this.add.text(this.cameras.main.width / 2, this.cameras.main.height / 2 + 20, 'Press SPACE to Start', {
