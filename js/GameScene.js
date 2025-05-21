@@ -40,43 +40,72 @@ class GameScene extends Phaser.Scene {
     }
 
     create() {
-        this.physics.world.gravity.y = GameConfig.DEFAULT_GRAVITY;
-        this.cameras.main.setBackgroundColor(GameConfig.SKY_COLOR);
+        // HARDCODED TEMPORARY VALUES FOR DEBUGGING
+        const TEMP_DEFAULT_GRAVITY = 400;
+        const TEMP_GROUND_Y_OFFSET = 200;
+        const TEMP_PLAYER_RESPAWN_Y_OFFSET = -24;
+        const TEMP_GROUND_SEGMENT_HEIGHT = 50;
+
+        // this.physics.world.gravity.y = GameConfig.DEFAULT_GRAVITY;
+        this.physics.world.gravity.y = TEMP_DEFAULT_GRAVITY;
+        this.cameras.main.setBackgroundColor(GameConfig.SKY_COLOR); // Sky color is fine from GameConfig
 
         // Enable physics debug drawing
         this.physics.world.createDebugGraphic();
         // Make sure debug is drawn for dynamic bodies too
         this.physics.world.drawDebug = true;
 
-        const TRACK_WIDTH = this.configWidth * GameConfig.TRACK_WIDTH_MULTIPLIER;
-        this.groundTopY = this.configHeight - GameConfig.GROUND_Y_OFFSET;
-        this.fallDeathY = this.groundTopY + GameConfig.GROUND_SEGMENT_HEIGHT + GameConfig.FALL_DEATH_Y_BUFFER;
+        this.groundTopY = this.configHeight - TEMP_GROUND_Y_OFFSET;
+        this.fallDeathY = this.groundTopY + TEMP_GROUND_SEGMENT_HEIGHT + GameConfig.FALL_DEATH_Y_BUFFER;
 
         // Ground Plane and Track Segments (using functions from obstacles.js)
-        // Assuming createGroundAndTrack is globally available or we import/define it
-        const groundData = createGroundAndTrack(this, TRACK_WIDTH, this.groundTopY, GameConfig.GROUND_SEGMENT_HEIGHT);
+        const groundData = createGroundAndTrack(this, this.configWidth * GameConfig.TRACK_WIDTH_MULTIPLIER, this.groundTopY, TEMP_GROUND_SEGMENT_HEIGHT);
         this.groundGroup = groundData.groundGroup;
         this.trackSegments = groundData.trackSegments;
 
+        console.log("GameScene: Ground group created:", this.groundGroup);
+        if (this.groundGroup && this.groundGroup.getChildren()) {
+            console.log("GameScene: Number of ground segments:", this.groundGroup.getChildren().length);
+            this.groundGroup.getChildren().forEach((segment, index) => {
+                console.log(`GameScene: Ground segment ${index} body:`, segment.body ? segment.body.width + 'x' + segment.body.height + ' at ' + segment.body.x + ',' + segment.body.y + ' enabled: ' + segment.body.enable : 'NO BODY');
+            });
+        }
+
         // Player Instance
-        const playerInitialY = this.groundTopY + GameConfig.PLAYER_RESPAWN_Y_OFFSET;
+        // Place player directly on the ground to prevent falling through
+        const playerInitialY = this.groundTopY - (64/2); // half of sprite height
         this.player = new Player(this, GameConfig.PLAYER_INITIAL_X, playerInitialY, "player_run_anim", GameConfig.PLAYER_SPEED_NORMAL, GameConfig.PLAYER_SPEED_BOOSTED, GameConfig.JUMP_VELOCITY);
 
+        console.log("GameScene: Player sprite created:", this.player.sprite);
+        if (this.player.sprite) {
+            console.log("GameScene: Player sprite body:", this.player.sprite.body ? this.player.sprite.body.width + 'x' + this.player.sprite.body.height + ' at ' + this.player.sprite.body.x + ',' + this.player.sprite.body.y + ' enabled: ' + this.player.sprite.body.enable : 'NO BODY');
+        }
+
         // Bot Instance
-        const botInitialY = this.groundTopY + GameConfig.BOT_RESPAWN_Y_OFFSET;
+        // Place bot directly on the ground to prevent falling through
+        const botInitialY = this.groundTopY - (64/2); // half of sprite height
         this.bot = new Bot(this, GameConfig.BOT_INITIAL_X, botInitialY, "bot_run_anim", GameConfig.BOT_SPEED_NORMAL, GameConfig.BOT_SPEED_BOOSTED, GameConfig.JUMP_VELOCITY);
+        
+        console.log("GameScene: Bot sprite created:", this.bot.sprite);
+        if (this.bot.sprite) {
+            console.log("GameScene: Bot sprite body:", this.bot.sprite.body ? this.bot.sprite.body.width + 'x' + this.bot.sprite.body.height + ' at ' + this.bot.sprite.body.x + ',' + this.bot.sprite.body.y + ' enabled: ' + this.bot.sprite.body.enable : 'NO BODY');
+        }
 
         // Power-ups (using functions from powerups.js)
-        // Assuming createPowerups is globally available
         this.powerupsGroup = createPowerups(this, this.groundTopY);
 
         // Walls Obstacles (using function from obstacles.js)
-        // Assuming createWalls is globally available
         this.wallsGroup = createWalls(this, this.groundTopY);
 
         // --- Physics Colliders and Overlaps ---
-        this.physics.add.collider(this.player.sprite, this.groundGroup);
-        this.physics.add.collider(this.bot.sprite, this.groundGroup);
+        if (this.groundGroup && this.groundGroup.getChildren().length > 0) {
+            const groundChildren = this.groundGroup.getChildren();
+            this.physics.add.collider(this.player.sprite, groundChildren);
+            this.physics.add.collider(this.bot.sprite, groundChildren);
+            console.log("GameScene: Player and Bot ground collider set up with groundGroup children.");
+        } else {
+            console.error("GameScene: Ground group is empty or not found, cannot set collider with groundGroup!");
+        }
 
         this.physics.add.collider(this.player.sprite, this.wallsGroup, (playerSprite, wall) => {
             playerSprite.playerInstance.onHitObstacle(wall);
@@ -106,7 +135,8 @@ class GameScene extends Phaser.Scene {
         // Finish Line
         const finishLineHeight = this.configHeight - GameConfig.FINISH_LINE_HEIGHT_OFFSET;
         // TRACK_WIDTH is already calculated using GameConfig.TRACK_WIDTH_MULTIPLIER
-        this.finishLine = this.add.rectangle(TRACK_WIDTH * GameConfig.FINISH_LINE_X_MULTIPLIER, finishLineHeight / 2, 10, finishLineHeight, 0xffff00);
+        const finishLineX = (this.configWidth * GameConfig.TRACK_WIDTH_MULTIPLIER) * GameConfig.FINISH_LINE_X_MULTIPLIER;
+        this.finishLine = this.add.rectangle(finishLineX, finishLineHeight / 2, 10, finishLineHeight, 0xffff00);
         this.physics.add.existing(this.finishLine, true); // true for static body
 
         this.physics.add.overlap(this.player.sprite, this.finishLine, () => this.handleCharacterFinish(this.player), null, this);
@@ -114,8 +144,8 @@ class GameScene extends Phaser.Scene {
         
         // Camera Setup
         // TRACK_WIDTH is already calculated above using GameConfig.TRACK_WIDTH_MULTIPLIER
-        this.physics.world.setBounds(0, 0, TRACK_WIDTH, this.configHeight);
-        this.cameras.main.setBounds(0, 0, TRACK_WIDTH, this.configHeight);
+        this.physics.world.setBounds(0, 0, this.configWidth * GameConfig.TRACK_WIDTH_MULTIPLIER, this.configHeight);
+        this.cameras.main.setBounds(0, 0, this.configWidth * GameConfig.TRACK_WIDTH_MULTIPLIER, this.configHeight);
         this.cameras.main.startFollow(this.player.sprite, true, 0.08, 0.08);
 
         // Input cursors
@@ -126,12 +156,17 @@ class GameScene extends Phaser.Scene {
         // The game effectively starts as soon as this scene is created.
         // MainMenuScene handles the "Press SPACE to start"
         this.gameStarted = true; 
-        if (this.player && this.player.sprite && this.player.sprite.body) {
-            this.player.sprite.body.setVelocityX(this.player.currentSpeed);
-        }
-        if (this.bot && this.bot.sprite && this.bot.sprite.body) {
-            this.bot.sprite.body.setVelocityX(this.bot.currentSpeed);
-        }
+        
+        // Start movement after a small delay to ensure physics bodies are fully set up
+        this.time.delayedCall(100, () => {
+            console.log("Starting player and bot movement");
+            if (this.player && this.player.sprite && this.player.sprite.body) {
+                this.player.sprite.body.setVelocityX(this.player.currentSpeed);
+            }
+            if (this.bot && this.bot.sprite && this.bot.sprite.body) {
+                this.bot.sprite.body.setVelocityX(this.bot.currentSpeed);
+            }
+        });
     }
 
     // Generic finish handler (moved into GameScene)

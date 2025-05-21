@@ -19,7 +19,8 @@ function createGroundAndTrack(scene, trackWidth, groundTopY, groundSegmentHeight
             const segmentWidth = seg.end - seg.start;
             if (segmentWidth > 0) {
                 const groundRect = scene.add.rectangle(seg.start + segmentWidth / 2, groundSegmentCenterY, segmentWidth, groundSegmentHeight, groundColor);
-                groundGroup.add(groundRect); // Add to static group for physics
+                scene.physics.add.existing(groundRect, true); // Add static physics body
+                groundGroup.add(groundRect); // Add to static group
             }
         }
     });
