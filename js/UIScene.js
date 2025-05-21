@@ -4,12 +4,10 @@ class UIScene extends Phaser.Scene {
     }
 
     preload() {
-        console.log("UIScene: Preload");
         // Load assets for UI elements if any (e.g., icons for power-ups)
     }
 
     create() {
-        console.log("UIScene: Create");
 
         // Position Tracking Text (example, will be populated from GameScene events or registry)
         this.positionText = this.add.text(10, 10, 'Position: -', { 

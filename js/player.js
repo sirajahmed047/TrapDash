@@ -72,17 +72,17 @@ class Player {
             this.shieldActive = false;
             this.activePowerup = null; // Shield consumed
             this.removeGlow();
-            console.log("Player shield absorbed obstacle hit!");
+            // console.log("Player shield absorbed obstacle hit!"); // Removed for general cleanup
             return true; // Indicate shield was used
         }
-        console.log("Player hit obstacle!");
+        // console.log("Player hit obstacle!"); // Removed for general cleanup
         return false; // Indicate shield was not used
     }
 
     onFall() {
         if (this.isFalling) return;
 
-        console.log("Player fell!");
+        // console.log("Player fell!"); // Removed for general cleanup
         this.isFalling = true;
         this.sprite.setVisible(false);
         this.sprite.body.setEnable(false);
@@ -108,12 +108,12 @@ class Player {
             // this.sprite.body.setVelocityX(this.currentSpeed); 
             this.sprite.body.setVelocityY(0); 
             this.isFalling = false;
-            console.log("Player respawned at X:", respawnX, "on segment:", this.lastSafeGroundSegment);
+            // console.log("Player respawned at X:", respawnX, "on segment:", this.lastSafeGroundSegment); // Removed for general cleanup
         }, [], this.scene);
     }
 
     onFinish() {
-        console.log("Player instance: onFinish called");
+        // console.log("Player instance: onFinish called"); // Removed for general cleanup
         this.sprite.body.setVelocity(0,0);
         this.sprite.body.setAcceleration(0,0);
         this.sprite.body.allowGravity = false; // Keep from falling if finish line is mid-air
@@ -121,7 +121,7 @@ class Player {
     }
 
     collectPowerup(powerupType) {
-        console.log(`Player collecting ${powerupType}`);
+        // console.log(`Player collecting ${powerupType}`); // Removed for general cleanup
         this.resetPowerupEffects(); // Clear existing effects
         this.removeGlow();
 
@@ -130,21 +130,21 @@ class Player {
         if (powerupType === 'speed') {
             this.currentSpeed = this.boostedSpeed;
             this.applyGlow(0xFFFF00); // Yellow glow
-            console.log("Player Speed Boost activated!");
+            // console.log("Player Speed Boost activated!"); // Removed for general cleanup
 
             if (this.powerupTimer) this.powerupTimer.remove();
-            this.powerupTimer = this.scene.time.delayedCall(POWERUP_DURATION, () => {
+            this.powerupTimer = this.scene.time.delayedCall(GameConfig.POWERUP_DURATION, () => {
                 if (this.activePowerup === 'speed') { 
                     this.currentSpeed = this.normalSpeed;
                     this.activePowerup = null;
                     this.removeGlow();
-                    console.log("Player Speed Boost ended.");
+                    // console.log("Player Speed Boost ended."); // Removed for general cleanup
                 }
             }, [], this.scene);
         } else if (powerupType === 'shield') {
             this.shieldActive = true;
             this.applyGlow(0x00FF00); // Green glow
-            console.log("Player Shield activated!");
+            // console.log("Player Shield activated!"); // Removed for general cleanup
             // Shield is one-time use, no timer needed here to remove its active state, only its glow on consumption
         }
     }
@@ -181,7 +181,5 @@ class Player {
     }
 }
 
-// For JUMP_VELOCITY and POWERUP_DURATION to be accessible here without passing them everywhere,
-// they would need to be global or part of a shared config object.
-// For now, assume JUMP_VELOCITY is global (defined in game.js)
-// and POWERUP_DURATION is from powerups.js (also global via script tag).
+// Note: JUMP_VELOCITY is passed via constructor. POWERUP_DURATION is from GameConfig.
+// Old comments about global access are no longer accurate.

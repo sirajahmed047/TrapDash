@@ -1,20 +1,9 @@
-// Game constants that might be used by GameScene (can be moved or organized better later)
-const JUMP_VELOCITY_GS = -300; 
-const TRACK_WIDTH_MULTIPLIER_GS = 7;
-const BOT_JUMP_LOOKAHEAD_WALL_GS = 95;
-const BOT_JUMP_LOOKAHEAD_GAP_GS = 90;
-const PLAYER_SPEED_NORMAL_GS = 250;
-const PLAYER_SPEED_BOOSTED_GS = 400;
-const BOT_SPEED_NORMAL_GS = 249; 
-const BOT_SPEED_BOOSTED_GS = 390;
-
 class GameScene extends Phaser.Scene {
     constructor() {
         super({ key: 'GameScene' });
     }
 
     init(data) {
-        console.log("GameScene: Init", data);
         // Game state flags, initialized here
         this.gameStarted = false; // Will be set to true after a brief delay or immediately
         this.gameOver = false;
@@ -43,42 +32,35 @@ class GameScene extends Phaser.Scene {
     }
 
     preload() {
-        console.log("GameScene: Preload");
         // Load game assets
-        this.load.image("playerPH", "assets/images/player_placeholder.png"); // Using original keys now
+        this.load.image("playerPH", "assets/images/player_placeholder.png"); 
         this.load.image("botPH", "assets/images/bot_placeholder.png");
-        this.load.image("powerupBoxPH", "assets/images/powerup_box_placeholder.png");
         this.load.image("powerupSpeedIconPH", "assets/images/powerup_speed_icon_placeholder.png");
         this.load.image("powerupShieldIconPH", "assets/images/powerup_shield_icon_placeholder.png");
         this.load.image("wall", "assets/images/obstacle_wall.png");
-        // Removed backgroundPH as it wasn't being used: // this.load.image("backgroundPH", "assets/images/background_placeholder.png");
     }
 
     create() {
-        console.log("GameScene: Create");
-        this.physics.world.gravity.y = 400;
+        this.physics.world.gravity.y = GameConfig.DEFAULT_GRAVITY;
         this.cameras.main.setBackgroundColor('#87CEEB');
 
-        const TRACK_WIDTH = this.configWidth * TRACK_WIDTH_MULTIPLIER_GS;
-        this.groundTopY = this.configHeight - 200;
-        const groundSegmentHeight = 50;
-        this.fallDeathY = this.groundTopY + groundSegmentHeight + 20;
+        const TRACK_WIDTH = this.configWidth * GameConfig.TRACK_WIDTH_MULTIPLIER;
+        this.groundTopY = this.configHeight - 200; // This could be a GameConfig value if it needs to be globally consistent
+        this.fallDeathY = this.groundTopY + GameConfig.GROUND_SEGMENT_HEIGHT + 20; // Assuming 20 is a small buffer
 
         // Ground Plane and Track Segments (using functions from obstacles.js)
         // Assuming createGroundAndTrack is globally available or we import/define it
-        const groundData = createGroundAndTrack(this, TRACK_WIDTH, this.groundTopY, groundSegmentHeight);
+        const groundData = createGroundAndTrack(this, TRACK_WIDTH, this.groundTopY, GameConfig.GROUND_SEGMENT_HEIGHT);
         this.groundGroup = groundData.groundGroup;
         this.trackSegments = groundData.trackSegments;
 
         // Player Instance
-        const playerInitialX = 100;
-        const playerInitialY = this.groundTopY - 24;
-        this.player = new Player(this, playerInitialX, playerInitialY, "playerPH", PLAYER_SPEED_NORMAL_GS, PLAYER_SPEED_BOOSTED_GS, JUMP_VELOCITY_GS);
+        const playerInitialY = this.groundTopY + GameConfig.PLAYER_RESPAWN_Y_OFFSET;
+        this.player = new Player(this, GameConfig.PLAYER_INITIAL_X, playerInitialY, "playerPH", GameConfig.PLAYER_SPEED_NORMAL, GameConfig.PLAYER_SPEED_BOOSTED, GameConfig.JUMP_VELOCITY);
 
         // Bot Instance
-        const botInitialX = 50;
-        const botInitialY = this.groundTopY - 24;
-        this.bot = new Bot(this, botInitialX, botInitialY, "botPH", BOT_SPEED_NORMAL_GS, BOT_SPEED_BOOSTED_GS, JUMP_VELOCITY_GS);
+        const botInitialY = this.groundTopY + GameConfig.BOT_RESPAWN_Y_OFFSET;
+        this.bot = new Bot(this, GameConfig.BOT_INITIAL_X, botInitialY, "botPH", GameConfig.BOT_SPEED_NORMAL, GameConfig.BOT_SPEED_BOOSTED, GameConfig.JUMP_VELOCITY);
 
         // Power-ups (using functions from powerups.js)
         // Assuming createPowerups is globally available
@@ -119,13 +101,15 @@ class GameScene extends Phaser.Scene {
 
         // Finish Line
         const finishLineHeight = this.configHeight - 50; // Adjusted to use scene's configHeight
-        this.finishLine = this.add.rectangle(TRACK_WIDTH * 0.9, finishLineHeight / 2, 10, finishLineHeight, 0xffff00);
+        // TRACK_WIDTH is already calculated using GameConfig.TRACK_WIDTH_MULTIPLIER
+        this.finishLine = this.add.rectangle(TRACK_WIDTH * GameConfig.FINISH_LINE_X_MULTIPLIER, finishLineHeight / 2, 10, finishLineHeight, 0xffff00);
         this.physics.add.existing(this.finishLine, true); // true for static body
 
         this.physics.add.overlap(this.player.sprite, this.finishLine, () => this.handleCharacterFinish(this.player), null, this);
         this.physics.add.overlap(this.bot.sprite, this.finishLine, () => this.handleCharacterFinish(this.bot), null, this);
         
         // Camera Setup
+        // TRACK_WIDTH is already calculated above using GameConfig.TRACK_WIDTH_MULTIPLIER
         this.physics.world.setBounds(0, 0, TRACK_WIDTH, this.configHeight);
         this.cameras.main.setBounds(0, 0, TRACK_WIDTH, this.configHeight);
         this.cameras.main.startFollow(this.player.sprite, true, 0.08, 0.08);
@@ -144,7 +128,6 @@ class GameScene extends Phaser.Scene {
         if (this.bot && this.bot.sprite && this.bot.sprite.body) {
             this.bot.sprite.body.setVelocityX(this.bot.currentSpeed);
         }
-        console.log("GameScene: Create completed. Player and Bot should be moving.");
     }
 
     // Generic finish handler (moved into GameScene)
@@ -206,7 +189,7 @@ class GameScene extends Phaser.Scene {
 
         // Bot update
         if (this.bot) {
-            this.bot.updateAI(this.trackSegments, this.wallsGroup, BOT_JUMP_LOOKAHEAD_WALL_GS, BOT_JUMP_LOOKAHEAD_GAP_GS);
+            this.bot.updateAI(this.trackSegments, this.wallsGroup, GameConfig.BOT_JUMP_LOOKAHEAD_WALL, GameConfig.BOT_JUMP_LOOKAHEAD_GAP);
             this.bot.update(); // For bot's glow
             if (this.bot.sprite.body) { // Ensure body exists
                 this.bot.sprite.body.setVelocityX(this.bot.currentSpeed); // Apply speed
@@ -238,12 +221,5 @@ class GameScene extends Phaser.Scene {
             // }
         }
         
-        // Update player's lastSafeX (already in Player.js update, potentially redundant here if Player.js handles its reset)
-        // if (this.player && !this.player.isFalling && this.player.sprite.body.onFloor()) {
-        //     this.player.lastSafeX = this.player.sprite.x;
-        // }
-        // if (this.bot && !this.bot.isFalling && this.bot.sprite.body.onFloor()) {
-        //     this.bot.lastSafeX = this.bot.sprite.x;
-        // }
     }
 }

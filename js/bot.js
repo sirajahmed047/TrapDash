@@ -104,10 +104,10 @@ class Bot {
             this.shieldActive = false;
             this.activePowerup = null; // Shield consumed
             this.removeGlow();
-            console.log("Bot shield absorbed obstacle hit!");
+            // console.log("Bot shield absorbed obstacle hit!"); // Removed for general cleanup
             return true; // Indicate shield was used
         }
-        console.log("Bot hit obstacle! Attempting reactive jump.");
+        // console.log("Bot hit obstacle! Attempting reactive jump."); // Removed for general cleanup
         if (this.sprite.body.onFloor()) {
             this.sprite.body.setVelocityY(this.jumpVelocity);
         }
@@ -117,7 +117,7 @@ class Bot {
     onFall() {
         if (this.isFalling) return;
 
-        console.log("Bot fell!");
+        // console.log("Bot fell!"); // Removed for general cleanup
         this.isFalling = true;
         this.sprite.setVisible(false);
         this.sprite.body.setEnable(false);
@@ -143,18 +143,18 @@ class Bot {
             // this.sprite.body.setVelocityX(this.currentSpeed);
             this.sprite.body.setVelocityY(0);
             this.isFalling = false;
-            console.log("Bot respawned at X:", respawnX, "on segment:", this.lastSafeGroundSegment);
+            // console.log("Bot respawned at X:", respawnX, "on segment:", this.lastSafeGroundSegment); // Removed for general cleanup
         }, [], this.scene);
     }
 
     onFinish() {
-        console.log("Bot instance: onFinish called");
+        // console.log("Bot instance: onFinish called"); // Removed for general cleanup
         this.sprite.body.setVelocityX(0);
         this.removeGlow();
     }
 
     collectPowerup(powerupType) {
-        console.log(`Bot collecting ${powerupType}`);
+        // console.log(`Bot collecting ${powerupType}`); // Removed for general cleanup
         this.resetPowerupEffects();
         this.removeGlow();
         
@@ -163,21 +163,21 @@ class Bot {
         if (powerupType === 'speed') {
             this.currentSpeed = this.boostedSpeed;
             this.applyGlow(0xFFFF00); // Yellow glow
-            console.log("Bot Speed Boost activated!");
+            // console.log("Bot Speed Boost activated!"); // Removed for general cleanup
 
             if (this.powerupTimer) this.powerupTimer.remove();
-            this.powerupTimer = this.scene.time.delayedCall(POWERUP_DURATION, () => {
+            this.powerupTimer = this.scene.time.delayedCall(GameConfig.POWERUP_DURATION, () => {
                 if (this.activePowerup === 'speed') {
                     this.currentSpeed = this.normalSpeed;
                     this.activePowerup = null;
                     this.removeGlow();
-                    console.log("Bot Speed Boost ended.");
+                    // console.log("Bot Speed Boost ended."); // Removed for general cleanup
                 }
             }, [], this.scene);
         } else if (powerupType === 'shield') {
             this.shieldActive = true;
             this.applyGlow(0x00FF00); // Green glow
-            console.log("Bot Shield activated!");
+            // console.log("Bot Shield activated!"); // Removed for general cleanup
         }
     }
 
@@ -212,5 +212,5 @@ class Bot {
     }
 }
 
-// Similar to Player.js, BOT_JUMP_LOOKAHEAD_WALL, BOT_JUMP_LOOKAHEAD_GAP
-// and POWERUP_DURATION would need to be accessible (e.g. global or passed).
+// Note: BOT_JUMP_LOOKAHEAD constants are passed via updateAI. POWERUP_DURATION is from GameConfig.
+// Old comments about global access are no longer accurate.

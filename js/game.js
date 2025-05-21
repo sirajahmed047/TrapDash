@@ -15,16 +15,6 @@ const config = {
     scene: [BootScene, MainMenuScene, GameScene, UIScene, GameOverScene] // Scene classes array
 };
 
-// Global game constants (consider moving to a dedicated constants file or per-scene if not truly global)
-// const JUMP_VELOCITY = -300; // Will be managed by GameScene or Player class
-// const TRACK_WIDTH_MULTIPLIER = 7; // Will be managed by GameScene
-// const BOT_JUMP_LOOKAHEAD_WALL = 95; // Will be managed by GameScene/Bot class
-// const BOT_JUMP_LOOKAHEAD_GAP = 90; // Will be managed by GameScene/Bot class
-// const PLAYER_SPEED_NORMAL = 250; // Will be managed by GameScene/Player class
-// const PLAYER_SPEED_BOOSTED = 400; // Will be managed by GameScene/Player class
-// const BOT_SPEED_NORMAL = 249; // Will be managed by GameScene/Bot class
-// const BOT_SPEED_BOOSTED = 390; // Will be managed by GameScene/Bot class
-
 // Create a new Phaser Game instance
 const game = new Phaser.Game(config);
 
