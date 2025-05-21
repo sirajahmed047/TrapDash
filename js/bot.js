@@ -6,8 +6,8 @@ class Bot {
         this.jumpVelocity = jumpVelocity; // Store jump velocity
 
         this.sprite = scene.physics.add.sprite(x, y, textureKey);
-        this.sprite.setScale(2);
-        this.sprite.body.setSize(32, 28).setOffset(0, 0); // Assuming texture is 32x32, body 32x28
+        this.sprite.setScale(1);
+        this.sprite.body.setSize(64, 64).setOffset(0, 0);
         this.sprite.setCollideWorldBounds(true);
         this.sprite.body.setBounceX(0.05);
         this.sprite.body.setAllowGravity(true); // Gravity is global in the scene
@@ -25,14 +25,29 @@ class Bot {
 
         // Link the sprite back to this Bot instance for easy access in colliders
         this.sprite.botInstance = this;
+        
+        // Start running animation
+        if (this.sprite.anims) {
+            this.sprite.play('bot_running', true);
+        }
+        
+        // When jump animation completes, return to running if on ground
+        this.sprite.on(Phaser.Animations.Events.ANIMATION_COMPLETE_KEY + 'bot_jumping', () => {
+            if (!this.isFalling && this.sprite.body.onFloor()) { 
+                this.sprite.play('bot_running', true);
+            }
+        }, this);
     }
 
     // Main update called from game.js, primarily for movement and glow
     update() {
         if (this.isFalling) return;
 
-        // Actual velocity setting will be handled by game.js based on gameStarted state
-        // this.sprite.body.setVelocityX(this.currentSpeed); 
+        // If on floor and not already running (e.g., after landing from a jump), play run animation
+        if (this.sprite.body.onFloor() && this.sprite.anims && 
+            this.sprite.anims.currentAnim && this.sprite.anims.currentAnim.key !== 'bot_running') {
+            this.sprite.play('bot_running', true);
+        }
 
         // Update glow position
         if (this.glowEffectGraphic && this.activePowerup) {
@@ -96,7 +111,28 @@ class Bot {
 
         if (shouldBotJump) {
             this.sprite.body.setVelocityY(this.jumpVelocity);
+            // Play jump animation
+            this.sprite.play('bot_jumping', true);
+            // Create jump dust
+            this.createJumpDust();
         }
+    }
+    
+    // Create dust particle effect when jumping
+    createJumpDust() {
+        const dust = this.scene.add.sprite(
+            this.sprite.x, 
+            this.sprite.y + 32, // Position at character's feet
+            'jump_dust'
+        );
+        
+        dust.setOrigin(0.5, 0.5);
+        dust.play('jump_dust_anim');
+        
+        // Remove the dust sprite once animation completes
+        dust.on('animationcomplete', () => {
+            dust.destroy();
+        });
     }
 
     onHitObstacle(_obstacle) {
@@ -104,12 +140,20 @@ class Bot {
             this.shieldActive = false;
             this.activePowerup = null; // Shield consumed
             this.removeGlow();
-            // console.log("Bot shield absorbed obstacle hit!"); // Removed for general cleanup
             return true; // Indicate shield was used
         }
-        // console.log("Bot hit obstacle! Attempting reactive jump."); // Removed for general cleanup
+        
         if (this.sprite.body.onFloor()) {
             this.sprite.body.setVelocityY(this.jumpVelocity);
+            // Play jump animation
+            this.sprite.play('bot_jumping', true);
+            // Create jump dust
+            this.createJumpDust();
+            
+            // Add camera shake on hit
+            if (this.scene.shakeCamera) {
+                this.scene.shakeCamera(0.005, 100); // Less intense than player shake
+            }
         }
         return false; // Indicate shield was not used
     }
@@ -117,7 +161,6 @@ class Bot {
     onFall() {
         if (this.isFalling) return;
 
-        // console.log("Bot fell!"); // Removed for general cleanup
         this.isFalling = true;
         this.sprite.setVisible(false);
         this.sprite.body.setEnable(false);
@@ -139,22 +182,22 @@ class Bot {
             this.sprite.setPosition(respawnX, this.respawnY);
             this.sprite.setVisible(true);
             this.sprite.body.setEnable(true);
-            // Speed will be set by game.js
-            // this.sprite.body.setVelocityX(this.currentSpeed);
             this.sprite.body.setVelocityY(0);
             this.isFalling = false;
-            // console.log("Bot respawned at X:", respawnX, "on segment:", this.lastSafeGroundSegment); // Removed for general cleanup
+            
+            // After respawn, ensure running animation plays if on floor
+            if (this.sprite.body.onFloor()) {
+                this.sprite.play('bot_running', true);
+            }
         }, [], this.scene);
     }
 
     onFinish() {
-        // console.log("Bot instance: onFinish called"); // Removed for general cleanup
         this.sprite.body.setVelocityX(0);
         this.removeGlow();
     }
 
     collectPowerup(powerupType) {
-        // console.log(`Bot collecting ${powerupType}`); // Removed for general cleanup
         this.resetPowerupEffects();
         this.removeGlow();
         
@@ -163,7 +206,6 @@ class Bot {
         if (powerupType === 'speed') {
             this.currentSpeed = this.boostedSpeed;
             this.applyGlow(0xFFFF00); // Yellow glow
-            // console.log("Bot Speed Boost activated!"); // Removed for general cleanup
 
             if (this.powerupTimer) this.powerupTimer.remove();
             this.powerupTimer = this.scene.time.delayedCall(GameConfig.POWERUP_DURATION, () => {
@@ -171,13 +213,11 @@ class Bot {
                     this.currentSpeed = this.normalSpeed;
                     this.activePowerup = null;
                     this.removeGlow();
-                    // console.log("Bot Speed Boost ended."); // Removed for general cleanup
                 }
             }, [], this.scene);
         } else if (powerupType === 'shield') {
             this.shieldActive = true;
             this.applyGlow(0x00FF00); // Green glow
-            // console.log("Bot Shield activated!"); // Removed for general cleanup
         }
     }
 

@@ -1,16 +1,20 @@
 class Player {
     constructor(scene, x, y, textureKey, normalSpeed, boostedSpeed, jumpVelocity) {
         this.scene = scene;
-        this.normalSpeed = normalSpeed;
+        this.normalSpeed = normalSpeed; // This is the player's base speed
         this.boostedSpeed = boostedSpeed;
         this.jumpVelocity = jumpVelocity; // Store jump velocity
 
+        // Use the textureKey passed from GameScene.js
         this.sprite = scene.physics.add.sprite(x, y, textureKey);
-        this.sprite.setScale(2);
-        this.sprite.body.setSize(32, 28).setOffset(0, 0); // Assuming texture is 32x32, body 32x28
+        
+        // Set appropriate size for the sprite
+        this.sprite.setScale(1);
+        this.sprite.body.setSize(64, 64).setOffset(0, 0);
+        
         this.sprite.setCollideWorldBounds(true);
         this.sprite.body.setBounceX(0.05);
-        this.sprite.body.setAllowGravity(true); // Gravity is global in the scene
+        this.sprite.body.setAllowGravity(true);
 
         this.lastSafeX = x;
         this.respawnY = y;
@@ -20,21 +24,38 @@ class Player {
         this.activePowerup = null;
         this.powerupTimer = null;
         this.shieldActive = false;
-        this.currentSpeed = normalSpeed;
+        this.currentSpeed = normalSpeed; // Player's current operational speed
         this.glowEffectGraphic = null;
 
         // Link the sprite back to this Player instance for easy access in colliders
         this.sprite.playerInstance = this;
+
+        // Start playing running animation if available
+        if (this.sprite.anims) {
+            this.sprite.play('player_running', true);
+        }
+
+        // When jump animation completes, return to running if on ground
+        this.sprite.on(Phaser.Animations.Events.ANIMATION_COMPLETE_KEY + 'player_jumping', () => {
+            if (!this.isFalling && this.sprite.body.onFloor()) { 
+                this.sprite.play('player_running', true);
+            }
+        }, this);
     }
 
     update(cursors) {
-        if (this.isFalling) return;
+        if (this.isFalling) {
+            // Optional: Play a falling animation here if you have one
+            // if (this.sprite.anims.currentAnim.key !== 'player_falling') {
+            //     this.sprite.play('player_falling', true);
+            // }
+            return;
+        }
 
-        // Update last safe X position and ground segment when on floor
         if (this.sprite.body.onFloor()) {
             this.lastSafeX = this.sprite.x;
-            this.lastSafeGroundSegment = null; // Reset before finding current
-            if (this.scene.trackSegments) { // Ensure trackSegments exists on the scene
+            this.lastSafeGroundSegment = null;
+            if (this.scene.trackSegments) {
                 for (const seg of this.scene.trackSegments) {
                     if (seg.type === 'ground' &&
                         this.sprite.body.right > seg.start &&
@@ -44,19 +65,21 @@ class Player {
                     }
                 }
             }
+            // If on floor and not already running (e.g., after landing from a jump), play run animation
+            if (this.sprite.anims && this.sprite.anims.currentAnim && this.sprite.anims.currentAnim.key !== 'player_running') {
+                this.sprite.play('player_running', true);
+            }
         }
-
-        // Apply movement based on currentSpeed (set by game start or power-ups)
-        // Actual velocity setting will be handled by game.js based on gameStarted state
-        // this.sprite.body.setVelocityX(this.currentSpeed); // Player class itself doesn't control if game has started
 
         // Player jump logic
         if (cursors.space.isDown && this.sprite.body.onFloor()) {
-            this.sprite.body.setVelocityY(this.jumpVelocity); // Use stored jumpVelocity
-            if (this.sprite.body.blocked.right) {
-                // Temporarily reduce speed if jumping against a wall, main speed applied by game.js
-                // this.sprite.body.setVelocityX(this.currentSpeed * 0.3); 
-            }
+            this.sprite.body.setVelocityY(this.jumpVelocity);
+            
+            // Play jump animation
+            this.sprite.play('player_jumping', true);
+            
+            // Create jump dust particle effect
+            this.createJumpDust();
         }
 
         // Update glow position
@@ -67,23 +90,44 @@ class Player {
         }
     }
 
+    // Create dust particle effect when jumping
+    createJumpDust() {
+        const dust = this.scene.add.sprite(
+            this.sprite.x, 
+            this.sprite.y + 32, // Position at character's feet
+            'jump_dust'
+        );
+        
+        dust.setOrigin(0.5, 0.5);
+        dust.play('jump_dust_anim');
+        
+        // Remove the dust sprite once animation completes
+        dust.on('animationcomplete', () => {
+            dust.destroy();
+        });
+    }
+
     onHitObstacle(_obstacle) {
         if (this.shieldActive) {
             this.shieldActive = false;
             this.activePowerup = null; // Shield consumed
             this.removeGlow();
-            // console.log("Player shield absorbed obstacle hit!"); // Removed for general cleanup
             return true; // Indicate shield was used
         }
-        // console.log("Player hit obstacle!"); // Removed for general cleanup
+        
+        // Add camera shake on hit
+        if (this.scene.shakeCamera) {
+            this.scene.shakeCamera(0.01, 150);
+        }
+        
         return false; // Indicate shield was not used
     }
 
     onFall() {
         if (this.isFalling) return;
 
-        // console.log("Player fell!"); // Removed for general cleanup
         this.isFalling = true;
+
         this.sprite.setVisible(false);
         this.sprite.body.setEnable(false);
         this.sprite.body.setVelocity(0, 0);
@@ -104,16 +148,17 @@ class Player {
             this.sprite.setPosition(respawnX, this.respawnY);
             this.sprite.setVisible(true);
             this.sprite.body.setEnable(true);
-            // Speed will be set by game.js based on gameStarted state
-            // this.sprite.body.setVelocityX(this.currentSpeed); 
             this.sprite.body.setVelocityY(0); 
             this.isFalling = false;
-            // console.log("Player respawned at X:", respawnX, "on segment:", this.lastSafeGroundSegment); // Removed for general cleanup
+            
+            // After respawn, ensure running animation plays if on floor
+            if (this.sprite.body.onFloor()) {
+                this.sprite.play('player_running', true);
+            }
         }, [], this.scene);
     }
 
     onFinish() {
-        // console.log("Player instance: onFinish called"); // Removed for general cleanup
         this.sprite.body.setVelocity(0,0);
         this.sprite.body.setAcceleration(0,0);
         this.sprite.body.allowGravity = false; // Keep from falling if finish line is mid-air

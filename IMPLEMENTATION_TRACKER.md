@@ -149,18 +149,18 @@ trapdash/
 
 **Phase 6: Visual Polish - Animations & Effects (Corresponds to update1.md - Step 1)**
 *   [ ] **Character Animations:**
-    *   [ ] Implement smooth run animation.
-    *   [ ] Implement jump animation.
+    *   [X] Implement smooth run animation.
+    *   [X] Implement jump animation.
     *   [ ] Implement fall animation.
     *   [ ] Implement hit animation (optional).
 *   [ ] **Particle Effects:**
-    *   [ ] Jump Dust.
+    *   [X] Jump Dust.
     *   [ ] Landing Dust/Impact.
     *   [ ] Speed Boost Trail.
     *   [ ] Shield Activation/Break visual.
     *   [ ] Power-Up Collection burst.
 *   [ ] **Screen Shake:**
-    *   [ ] Implement subtle screen shake on obstacle hit or major events.
+    *   [X] Implement subtle screen shake on obstacle hit or major events.
 
 **Phase 7: UI/UX Enhancements (Corresponds to update1.md - Step 2)**
 *   [ ] **Power-Up Indication:**

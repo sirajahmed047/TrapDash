@@ -33,8 +33,7 @@ class GameScene extends Phaser.Scene {
 
     preload() {
         // Load game assets
-        this.load.image("playerPH", "assets/images/player_placeholder.png"); 
-        this.load.image("botPH", "assets/images/bot_placeholder.png");
+        // Using the animations loaded in BootScene
         this.load.image("powerupSpeedIconPH", "assets/images/powerup_speed_icon_placeholder.png");
         this.load.image("powerupShieldIconPH", "assets/images/powerup_shield_icon_placeholder.png");
         this.load.image("wall", "assets/images/obstacle_wall.png");
@@ -56,11 +55,11 @@ class GameScene extends Phaser.Scene {
 
         // Player Instance
         const playerInitialY = this.groundTopY + GameConfig.PLAYER_RESPAWN_Y_OFFSET;
-        this.player = new Player(this, GameConfig.PLAYER_INITIAL_X, playerInitialY, "playerPH", GameConfig.PLAYER_SPEED_NORMAL, GameConfig.PLAYER_SPEED_BOOSTED, GameConfig.JUMP_VELOCITY);
+        this.player = new Player(this, GameConfig.PLAYER_INITIAL_X, playerInitialY, "player_sprite", GameConfig.PLAYER_SPEED_NORMAL, GameConfig.PLAYER_SPEED_BOOSTED, GameConfig.JUMP_VELOCITY);
 
         // Bot Instance
         const botInitialY = this.groundTopY + GameConfig.BOT_RESPAWN_Y_OFFSET;
-        this.bot = new Bot(this, GameConfig.BOT_INITIAL_X, botInitialY, "botPH", GameConfig.BOT_SPEED_NORMAL, GameConfig.BOT_SPEED_BOOSTED, GameConfig.JUMP_VELOCITY);
+        this.bot = new Bot(this, GameConfig.BOT_INITIAL_X, botInitialY, "bot_sprite", GameConfig.BOT_SPEED_NORMAL, GameConfig.BOT_SPEED_BOOSTED, GameConfig.JUMP_VELOCITY);
 
         // Power-ups (using functions from powerups.js)
         // Assuming createPowerups is globally available
@@ -221,5 +220,12 @@ class GameScene extends Phaser.Scene {
             // }
         }
         
+    }
+
+    // Add screen shake function
+    shakeCamera(intensity = 0.01, duration = 100) {
+        if (!this.cameras || !this.cameras.main) return;
+        
+        this.cameras.main.shake(duration, intensity);
     }
 }
