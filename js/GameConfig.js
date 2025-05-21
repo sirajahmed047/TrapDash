@@ -1,5 +1,7 @@
 // js/GameConfig.js
 const GameConfig = {
+    GAME_WIDTH: 800,
+    GAME_HEIGHT: 600,
     JUMP_VELOCITY: -300,
     TRACK_WIDTH_MULTIPLIER: 7,
     BOT_JUMP_LOOKAHEAD_WALL: 95,
@@ -17,7 +19,31 @@ const GameConfig = {
     GROUND_SEGMENT_HEIGHT: 50,
     PLAYER_RESPAWN_Y_OFFSET: -24, // Relative to groundTopY
     BOT_RESPAWN_Y_OFFSET: -24,    // Relative to groundTopY
-    FINISH_LINE_X_MULTIPLIER: 0.9 // Track width percentage for finish line
+    FINISH_LINE_X_MULTIPLIER: 0.9, // Track width percentage for finish line
+    GROUND_Y_OFFSET: 200, // Offset from bottom of the screen for ground
+    FALL_DEATH_Y_BUFFER: 20, // Buffer below ground for fall death
+    FINISH_LINE_HEIGHT_OFFSET: 50, // Offset from top for finish line height
+    SKY_COLOR: '#87CEEB',
+    RESPAWN_DELAY: 2000,
+    SPEED_GLOW_COLOR: 0xFFFF00,
+    SHIELD_GLOW_COLOR: 0x00FF00,
+    GLOW_ALPHA: 0.35,
+    GLOW_RADIUS: 8,
+    JUMP_DUST_Y_OFFSET: 32,
+    PLAYER_ANIM_FRAMERATE: 10,
+    BOT_ANIM_FRAMERATE: 10,
+    JUMP_DUST_ANIM_FRAMERATE: 12,
+    PLAYER_OBSTACLE_SHAKE_INTENSITY: 0.01,
+    PLAYER_OBSTACLE_SHAKE_DURATION: 150,
+    BOT_OBSTACLE_SHAKE_INTENSITY: 0.005,
+    BOT_OBSTACLE_SHAKE_DURATION: 100,
+    UI_FONT_SIZE_LARGE: '32px',
+    UI_FONT_SIZE_MEDIUM: '24px',
+    UI_FONT_SIZE_SMALL: '16px',
+    UI_FONT_COLOR: '#FFF',
+    UI_BUTTON_COLOR: '#555',
+    UI_BUTTON_HOVER_COLOR: '#777',
+    POWERUP_ICON_Y_OFFSET: -10
 };
 // Make it available globally if not using modules
 // window.GameConfig = GameConfig; // Or handle via script loading order

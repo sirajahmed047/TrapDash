@@ -122,7 +122,7 @@ class Bot {
     createJumpDust() {
         const dust = this.scene.add.sprite(
             this.sprite.x, 
-            this.sprite.y + 32, // Position at character's feet
+            this.sprite.y + GameConfig.JUMP_DUST_Y_OFFSET, // Position at character's feet
             'jump_dust'
         );
         
@@ -152,7 +152,7 @@ class Bot {
             
             // Add camera shake on hit
             if (this.scene.shakeCamera) {
-                this.scene.shakeCamera(0.005, 100); // Less intense than player shake
+                this.scene.shakeCamera(GameConfig.BOT_OBSTACLE_SHAKE_INTENSITY, GameConfig.BOT_OBSTACLE_SHAKE_DURATION);
             }
         }
         return false; // Indicate shield was not used
@@ -169,7 +169,7 @@ class Bot {
         this.resetPowerupEffects();
         this.removeGlow();
 
-        this.scene.time.delayedCall(2000, () => {
+        this.scene.time.delayedCall(GameConfig.RESPAWN_DELAY, () => {
             let respawnX = this.lastSafeX; // Default to last known X
             if (this.lastSafeGroundSegment && this.sprite.body) {
                 const buffer = (this.sprite.body.width / 2) + 5; // Place center 5px + half-body-width from edge
@@ -205,7 +205,7 @@ class Bot {
 
         if (powerupType === 'speed') {
             this.currentSpeed = this.boostedSpeed;
-            this.applyGlow(0xFFFF00); // Yellow glow
+            this.applyGlow(GameConfig.SPEED_GLOW_COLOR);
 
             if (this.powerupTimer) this.powerupTimer.remove();
             this.powerupTimer = this.scene.time.delayedCall(GameConfig.POWERUP_DURATION, () => {
@@ -217,7 +217,7 @@ class Bot {
             }, [], this.scene);
         } else if (powerupType === 'shield') {
             this.shieldActive = true;
-            this.applyGlow(0x00FF00); // Green glow
+            this.applyGlow(GameConfig.SHIELD_GLOW_COLOR);
         }
     }
 
@@ -238,8 +238,8 @@ class Bot {
         const glowWidth = this.sprite.displayWidth + 15;
         const glowHeight = this.sprite.displayHeight + 15;
         this.glowEffectGraphic = this.scene.add.graphics();
-        this.glowEffectGraphic.fillStyle(color, 0.35);
-        this.glowEffectGraphic.fillRoundedRect(-glowWidth / 2, -glowHeight / 2, glowWidth, glowHeight, 8);
+        this.glowEffectGraphic.fillStyle(color, GameConfig.GLOW_ALPHA);
+        this.glowEffectGraphic.fillRoundedRect(-glowWidth / 2, -glowHeight / 2, glowWidth, glowHeight, GameConfig.GLOW_RADIUS);
         this.glowEffectGraphic.setDepth(this.sprite.depth - 1);
         this.glowEffectGraphic.setPosition(this.sprite.x, this.sprite.y); // Initial position
     }

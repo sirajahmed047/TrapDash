@@ -51,7 +51,7 @@ class BootScene extends Phaser.Scene {
         this.anims.create({
             key: 'player_running',
             frames: this.anims.generateFrameNumbers('player_run_anim', { start: 0, end: 3 }), // 4 frames (0-3)
-            frameRate: 10, // Adjust for desired speed
+            frameRate: GameConfig.PLAYER_ANIM_FRAMERATE,
             repeat: -1 // Loop running animation
         });
 
@@ -59,7 +59,7 @@ class BootScene extends Phaser.Scene {
         this.anims.create({
             key: 'player_jumping',
             frames: this.anims.generateFrameNumbers('player_jump_anim', { start: 0, end: 3 }), // 4 frames (0-3)
-            frameRate: 10, // Adjust for desired speed
+            frameRate: GameConfig.PLAYER_ANIM_FRAMERATE,
             repeat: 0  // Play once
         });
 
@@ -67,7 +67,7 @@ class BootScene extends Phaser.Scene {
         this.anims.create({
             key: 'bot_running',
             frames: this.anims.generateFrameNumbers('bot_run_anim', { start: 0, end: 3 }), // 4 frames (0-3)
-            frameRate: 10, // Adjust for desired speed
+            frameRate: GameConfig.BOT_ANIM_FRAMERATE,
             repeat: -1 // Loop running animation
         });
 
@@ -75,7 +75,7 @@ class BootScene extends Phaser.Scene {
         this.anims.create({
             key: 'bot_jumping',
             frames: this.anims.generateFrameNumbers('bot_jump_anim', { start: 0, end: 3 }), // 4 frames (0-3)
-            frameRate: 10, // Adjust for desired speed
+            frameRate: GameConfig.BOT_ANIM_FRAMERATE,
             repeat: 0  // Play once
         });
 
@@ -83,7 +83,7 @@ class BootScene extends Phaser.Scene {
         this.anims.create({
             key: 'jump_dust_anim',
             frames: this.anims.generateFrameNumbers('jump_dust', { start: 0, end: 3 }), // 4 frames (0-3)
-            frameRate: 12,
+            frameRate: GameConfig.JUMP_DUST_ANIM_FRAMERATE,
             repeat: 0 // Play once
         });
 

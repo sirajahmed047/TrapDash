@@ -41,11 +41,11 @@ class GameScene extends Phaser.Scene {
 
     create() {
         this.physics.world.gravity.y = GameConfig.DEFAULT_GRAVITY;
-        this.cameras.main.setBackgroundColor('#87CEEB');
+        this.cameras.main.setBackgroundColor(GameConfig.SKY_COLOR);
 
         const TRACK_WIDTH = this.configWidth * GameConfig.TRACK_WIDTH_MULTIPLIER;
-        this.groundTopY = this.configHeight - 200; // This could be a GameConfig value if it needs to be globally consistent
-        this.fallDeathY = this.groundTopY + GameConfig.GROUND_SEGMENT_HEIGHT + 20; // Assuming 20 is a small buffer
+        this.groundTopY = this.configHeight - GameConfig.GROUND_Y_OFFSET;
+        this.fallDeathY = this.groundTopY + GameConfig.GROUND_SEGMENT_HEIGHT + GameConfig.FALL_DEATH_Y_BUFFER;
 
         // Ground Plane and Track Segments (using functions from obstacles.js)
         // Assuming createGroundAndTrack is globally available or we import/define it
@@ -99,7 +99,7 @@ class GameScene extends Phaser.Scene {
         }, null, this);
 
         // Finish Line
-        const finishLineHeight = this.configHeight - 50; // Adjusted to use scene's configHeight
+        const finishLineHeight = this.configHeight - GameConfig.FINISH_LINE_HEIGHT_OFFSET;
         // TRACK_WIDTH is already calculated using GameConfig.TRACK_WIDTH_MULTIPLIER
         this.finishLine = this.add.rectangle(TRACK_WIDTH * GameConfig.FINISH_LINE_X_MULTIPLIER, finishLineHeight / 2, 10, finishLineHeight, 0xffff00);
         this.physics.add.existing(this.finishLine, true); // true for static body

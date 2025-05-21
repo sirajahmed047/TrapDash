@@ -1,8 +1,8 @@
 // Basic Phaser 3 Game Configuration
 const config = {
     type: Phaser.AUTO, // Automatically choose WebGL or Canvas
-    width: 800,        // Game width in pixels
-    height: 600,       // Game height in pixels
+    width: GameConfig.GAME_WIDTH,
+    height: GameConfig.GAME_HEIGHT,
     parent: 'game-container', // ID of the DOM element to parent the canvas to
     backgroundColor: '#000000', // Default background, scenes can override
     physics: {

@@ -9,9 +9,9 @@ class MainMenuScene extends Phaser.Scene {
 
     create() {
         // Add title text and start prompt
-        this.add.text(this.cameras.main.width / 2, this.cameras.main.height / 2 - 50, 'TrapDash!', { fontSize: '48px', fill: '#fff' }).setOrigin(0.5);
+        this.add.text(this.cameras.main.width / 2, this.cameras.main.height / 2 - 50, 'TrapDash!', { fontSize: '48px', fill: GameConfig.UI_FONT_COLOR }).setOrigin(0.5);
         this.startText = this.add.text(this.cameras.main.width / 2, this.cameras.main.height / 2 + 20, 'Press SPACE to Start', {
-            fontSize: '32px', fill: '#fff', backgroundColor: '#0005',
+            fontSize: GameConfig.UI_FONT_SIZE_LARGE, fill: GameConfig.UI_FONT_COLOR, backgroundColor: '#0005',
             padding: { left: 15, right: 15, top: 10, bottom: 10 }
         }).setOrigin(0.5);
 

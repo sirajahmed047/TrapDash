@@ -11,8 +11,8 @@ class UIScene extends Phaser.Scene {
 
         // Position Tracking Text (example, will be populated from GameScene events or registry)
         this.positionText = this.add.text(10, 10, 'Position: -', { 
-            fontSize: '16px', 
-            fill: '#ffffff', 
+            fontSize: GameConfig.UI_FONT_SIZE_SMALL, 
+            fill: GameConfig.UI_FONT_COLOR, 
             backgroundColor: 'rgba(0,0,0,0.3)',
             padding: { left: 5, right: 5, top: 2, bottom: 2 }
         }).setScrollFactor(0);

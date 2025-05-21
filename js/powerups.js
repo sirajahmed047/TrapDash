@@ -13,7 +13,7 @@ function createPowerups(scene, groundTopY) {
         immovable: true
     });
 
-    const powerupY = groundTopY - 16; // Assumes 32px scaled height (icons are 0.5 scale), origin center
+    const powerupY = groundTopY + GameConfig.POWERUP_ICON_Y_OFFSET; // Use config for Y offset
 
     POWERUP_DATA.forEach(data => {
         const iconKey = (data.type === 'speed') ? "powerupSpeedIconPH" : "powerupShieldIconPH";

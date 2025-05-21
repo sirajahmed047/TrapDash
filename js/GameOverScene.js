@@ -22,8 +22,8 @@ class GameOverScene extends Phaser.Scene {
         }
         // If this.winner is 'None' or undefined, it defaults to "Race Over!"
 
-        const textStyle = { fontSize: '32px', fill: '#fff', backgroundColor: '#0008', padding: {left: 10, right: 10, top:5, bottom:5} };
-        const restartTextStyle = { fontSize: '24px', fill: '#fff', backgroundColor: '#0008', padding: {left: 10, right: 10, top:5, bottom:5} };
+        const textStyle = { fontSize: GameConfig.UI_FONT_SIZE_LARGE, fill: GameConfig.UI_FONT_COLOR, backgroundColor: '#0008', padding: {left: 10, right: 10, top:5, bottom:5} };
+        const restartTextStyle = { fontSize: GameConfig.UI_FONT_SIZE_MEDIUM, fill: GameConfig.UI_FONT_COLOR, backgroundColor: '#0008', padding: {left: 10, right: 10, top:5, bottom:5} };
 
         this.add.text(this.cameras.main.width / 2, this.cameras.main.height / 2 - 40, winnerText, textStyle).setOrigin(0.5);
         this.add.text(this.cameras.main.width / 2, this.cameras.main.height / 2 + 10, 'Press R to Restart', restartTextStyle).setOrigin(0.5);
