@@ -9,11 +9,11 @@ class GameScene extends Phaser.Scene {
         this.gameOver = false;
         this.playerWon = null;
         this.isPlayerActuallyFinished = false;
-        this.isBotActuallyFinished = false;
+        this.botsFinishedCount = 0;
 
         // References to game objects
         this.player = null;
-        this.bot = null;
+        this.bots = [];
         this.groundGroup = null;
         this.trackSegments = null;
         this.wallsGroup = null;
@@ -84,11 +84,13 @@ class GameScene extends Phaser.Scene {
         // Bot Instance
         // Place bot directly on the ground to prevent falling through
         const botInitialY = this.groundTopY - (64/2); // half of sprite height
-        this.bot = new Bot(this, GameConfig.BOT_INITIAL_X, botInitialY, "bot_run_anim", GameConfig.BOT_SPEED_NORMAL, GameConfig.BOT_SPEED_BOOSTED, GameConfig.JUMP_VELOCITY);
-        
-        console.log("GameScene: Bot sprite created:", this.bot.sprite);
-        if (this.bot.sprite) {
-            console.log("GameScene: Bot sprite body:", this.bot.sprite.body ? this.bot.sprite.body.width + 'x' + this.bot.sprite.body.height + ' at ' + this.bot.sprite.body.x + ',' + this.bot.sprite.body.y + ' enabled: ' + this.bot.sprite.body.enable : 'NO BODY');
+        for (let i = 0; i < 3; i++) {
+            const bot = new Bot(this, GameConfig.BOT_INITIAL_X + (i * 30), botInitialY, "bot_run_anim", GameConfig.BOT_SPEED_NORMAL, GameConfig.BOT_SPEED_BOOSTED, GameConfig.JUMP_VELOCITY);
+            this.bots.push(bot);
+            console.log(`GameScene: Bot ${i} sprite created:`, bot.sprite);
+            if (bot.sprite) {
+                console.log(`GameScene: Bot ${i} sprite body:`, bot.sprite.body ? bot.sprite.body.width + 'x' + bot.sprite.body.height + ' at ' + bot.sprite.body.x + ',' + bot.sprite.body.y + ' enabled: ' + bot.sprite.body.enable : 'NO BODY');
+            }
         }
 
         // Power-ups (using functions from powerups.js)
@@ -101,7 +103,9 @@ class GameScene extends Phaser.Scene {
         if (this.groundGroup && this.groundGroup.getChildren().length > 0) {
             const groundChildren = this.groundGroup.getChildren();
             this.physics.add.collider(this.player.sprite, groundChildren);
-            this.physics.add.collider(this.bot.sprite, groundChildren);
+            this.bots.forEach(bot => {
+                this.physics.add.collider(bot.sprite, groundChildren);
+            });
             console.log("GameScene: Player and Bot ground collider set up with groundGroup children.");
         } else {
             console.error("GameScene: Ground group is empty or not found, cannot set collider with groundGroup!");
@@ -110,9 +114,11 @@ class GameScene extends Phaser.Scene {
         this.physics.add.collider(this.player.sprite, this.wallsGroup, (playerSprite, wall) => {
             playerSprite.playerInstance.onHitObstacle(wall);
         }, null, this);
-        this.physics.add.collider(this.bot.sprite, this.wallsGroup, (botSprite, wall) => {
-            botSprite.botInstance.onHitObstacle(wall);
-        }, null, this);
+        this.bots.forEach(bot => {
+            this.physics.add.collider(bot.sprite, this.wallsGroup, (botSprite, wall) => {
+                botSprite.botInstance.onHitObstacle(wall);
+            }, null, this);
+        });
 
         // Power-up Collection
         this.physics.add.overlap(this.player.sprite, this.powerupsGroup, (playerSprite, powerupIcon) => {
@@ -124,13 +130,15 @@ class GameScene extends Phaser.Scene {
             initiatePowerupRespawn(this, powerupIcon);
         }, null, this);
 
-        this.physics.add.overlap(this.bot.sprite, this.powerupsGroup, (botSprite, powerupIcon) => {
-            if (!powerupIcon.active) return;
-            const type = powerupIcon.getData('type');
-            botSprite.botInstance.collectPowerup(type);
-            powerupIcon.disableBody(true, true);
-            initiatePowerupRespawn(this, powerupIcon);
-        }, null, this);
+        this.bots.forEach(bot => {
+            this.physics.add.overlap(bot.sprite, this.powerupsGroup, (botSprite, powerupIcon) => {
+                if (!powerupIcon.active) return;
+                const type = powerupIcon.getData('type');
+                botSprite.botInstance.collectPowerup(type);
+                powerupIcon.disableBody(true, true);
+                initiatePowerupRespawn(this, powerupIcon);
+            }, null, this);
+        });
 
         // Finish Line
         const finishLineHeight = this.configHeight - GameConfig.FINISH_LINE_HEIGHT_OFFSET;
@@ -140,7 +148,9 @@ class GameScene extends Phaser.Scene {
         this.physics.add.existing(this.finishLine, true); // true for static body
 
         this.physics.add.overlap(this.player.sprite, this.finishLine, () => this.handleCharacterFinish(this.player), null, this);
-        this.physics.add.overlap(this.bot.sprite, this.finishLine, () => this.handleCharacterFinish(this.bot), null, this);
+        this.bots.forEach(bot => {
+            this.physics.add.overlap(bot.sprite, this.finishLine, () => this.handleCharacterFinish(bot), null, this);
+        });
         
         // Camera Setup
         // TRACK_WIDTH is already calculated above using GameConfig.TRACK_WIDTH_MULTIPLIER
@@ -163,9 +173,11 @@ class GameScene extends Phaser.Scene {
             if (this.player && this.player.sprite && this.player.sprite.body) {
                 this.player.sprite.body.setVelocityX(this.player.currentSpeed);
             }
-            if (this.bot && this.bot.sprite && this.bot.sprite.body) {
-                this.bot.sprite.body.setVelocityX(this.bot.currentSpeed);
-            }
+            this.bots.forEach(bot => {
+                if (bot && bot.sprite && bot.sprite.body) {
+                    bot.sprite.body.setVelocityX(bot.currentSpeed);
+                }
+            });
         });
     }
 
@@ -175,28 +187,38 @@ class GameScene extends Phaser.Scene {
 
         const isPlayer = (characterInstance === this.player);
 
-        if (isPlayer) this.isPlayerActuallyFinished = true;
-        else this.isBotActuallyFinished = true;
-
-        characterInstance.onFinish(); // Call method on Player/Bot instance
-
+        if (isPlayer) {
+            if (!this.isPlayerActuallyFinished) { // Check if player hasn't finished yet
+                this.isPlayerActuallyFinished = true;
+                characterInstance.onFinish(); // Call method on Player instance
+            }
+        } else { // It's a bot
+            // Check if this specific bot instance has already finished
+            if (!characterInstance.isFinished) {
+                 characterInstance.onFinish(); // Call method on Bot instance (sets internal isFinished flag)
+                 this.botsFinishedCount++;
+            }
+        }
+        
         let winnerDetermined = null;
 
-        if (isPlayer && !this.isBotActuallyFinished) {
-            winnerDetermined = 'Player';
-        } else if (!isPlayer && !this.isPlayerActuallyFinished) {
-            winnerDetermined = 'Bot';
-        } else if (this.isPlayerActuallyFinished && this.isBotActuallyFinished) {
-            // Both finished, check who crossed *first* based on x position or who triggered this call.
-            // For simplicity, if player triggered this and bot also finished, player wins. If bot triggered and player also finished, bot wins.
-            // A more robust tie-breaking might be needed if exact simultaneous finish is possible and matters.
-            winnerDetermined = isPlayer ? 'Player' : 'Bot'; 
+        // Check win condition only if not already game over
+        if (!this.gameOver) {
+            if (this.isPlayerActuallyFinished) {
+                winnerDetermined = 'Player';
+            } else if (this.botsFinishedCount > 0 && !this.isPlayerActuallyFinished) {
+                // If any bot has finished and the player hasn't, the "Bot" wins.
+                // We don't distinguish between bots for the win message here.
+                winnerDetermined = 'Bot';
+            }
+            // Scenario where multiple bots finish, but player hasn't - "Bot" still wins.
+            // If player and a bot finish in very quick succession, the first one to trigger this will set gameOver.
         }
 
 
-        if (winnerDetermined) {
+        if (winnerDetermined && !this.gameOver) { // Ensure gameOver is set only once
             this.gameOver = true;
-            this.playerWon = winnerDetermined;
+            this.playerWon = winnerDetermined; // playerWon will be 'Player' or 'Bot'
             console.log('Game Over. Winner: ' + this.playerWon);
 
             if (isPlayer) { // If player is the one crossing and winning/triggering game over
@@ -214,27 +236,45 @@ class GameScene extends Phaser.Scene {
 
 
     update(time, delta) {
-        if (this.gameOver || !this.gameStarted) {
-            return; 
-        }
-
-        // Player update
-        if (this.player) {
-            this.player.update(this.cursors);
-            if (this.player.sprite.body) { // Ensure body exists
-                 this.player.sprite.body.setVelocityX(this.player.currentSpeed); // Apply speed, might change due to powerups
+        if (this.gameOver) {
+            // Stop all characters if game is over
+            if (this.player && this.player.sprite.body) { // Check if body exists
+                this.player.sprite.body.setVelocityX(0);
             }
+            this.bots.forEach(bot => {
+                if (bot && bot.sprite.body) { // Check if body exists
+                    bot.sprite.body.setVelocityX(0);
+                }
+            });
+            // Transition to GameOverScene (already handled by playerWon being set)
+            return;
         }
 
-        // Bot update
-        if (this.bot) {
-            this.bot.updateAI(this.trackSegments, this.wallsGroup, GameConfig.BOT_JUMP_LOOKAHEAD_WALL, GameConfig.BOT_JUMP_LOOKAHEAD_GAP);
-            this.bot.update(); // For bot's glow
-            if (this.bot.sprite.body) { // Ensure body exists
-                this.bot.sprite.body.setVelocityX(this.bot.currentSpeed); // Apply speed
+        // Start Game Logic
+        if (!this.gameStarted) {
+            // This logic is now mostly handled by MainMenuScene
+            // For safety, ensure characters don't move if game hasn't "started" according to this scene
+            return;
+        }
+
+
+        // Player Update
+        if (this.player && this.player.sprite.active) { // Check if sprite is active
+            this.player.update(this.cursors, this.trackSegments, this.wallsGroup, this.fallDeathY, this.groundTopY);
+        }
+
+
+        // Bot Updates
+        this.bots.forEach(bot => {
+            if (bot && bot.sprite.active) { // Check if sprite is active
+                bot.update(); // General update for movement, animations, glow
+                // AI decisions based on environment and bot's specific parameters
+                bot.updateAI(this.trackSegments, this.wallsGroup, GameConfig.BOT_JUMP_LOOKAHEAD_WALL, GameConfig.BOT_JUMP_LOOKAHEAD_GAP);
             }
-        }
+        });
 
+
+        // Position Tracking
         // Fall detection
         if (this.player && !this.player.isFalling && this.player.sprite.y > this.fallDeathY) {
             this.player.onFall();
@@ -248,17 +288,19 @@ class GameScene extends Phaser.Scene {
             //     this.scene.start('GameOverScene', { winner: 'Bot' });
             // }
         }
-        if (this.bot && !this.bot.isFalling && this.bot.sprite.y > this.fallDeathY) {
-            this.bot.onFall();
-            // Removed game over logic: Bot will respawn via Bot.onFall()
-            //  if (!this.gameOver) {
-            //     console.log("Bot fell. Player wins.");
-            //     this.gameOver = true;
-            //     this.playerWon = 'Player';
-            //     this.scene.stop('UIScene');
-            //     this.scene.start('GameOverScene', { winner: 'Player' });
-            // }
-        }
+        this.bots.forEach(bot => {
+            if (bot && !bot.isFalling && bot.sprite.y > this.fallDeathY) {
+                bot.onFall();
+                // Removed game over logic: Bot will respawn via Bot.onFall()
+                //  if (!this.gameOver) {
+                //     console.log("Bot fell. Player wins.");
+                //     this.gameOver = true;
+                //     this.playerWon = 'Player';
+                //     this.scene.stop('UIScene');
+                //     this.scene.start('GameOverScene', { winner: 'Player' });
+                // }
+            }
+        });
         
     }
 

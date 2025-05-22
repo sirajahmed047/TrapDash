@@ -52,6 +52,11 @@ class Player {
             return;
         }
 
+        // Continuously apply horizontal speed
+        if (this.sprite.body) { // Ensure body exists
+            this.sprite.body.setVelocityX(this.currentSpeed);
+        }
+
         if (this.sprite.body.onFloor()) {
             this.lastSafeX = this.sprite.x;
             this.lastSafeGroundSegment = null;
@@ -118,6 +123,11 @@ class Player {
         // Add camera shake on hit
         if (this.scene.shakeCamera) {
             this.scene.shakeCamera(GameConfig.PLAYER_OBSTACLE_SHAKE_INTENSITY, GameConfig.PLAYER_OBSTACLE_SHAKE_DURATION);
+        }
+
+        // If not shielded and hit a wall, ensure Y velocity is not making onFloor() false due to tiny bounce
+        if (this.sprite.body.onFloor() || (this.sprite.body.blocked.down && Math.abs(this.sprite.body.velocity.y) < 5)) {
+            this.sprite.body.setVelocityY(0); 
         }
         
         return false; // Indicate shield was not used

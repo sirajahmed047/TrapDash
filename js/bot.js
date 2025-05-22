@@ -43,6 +43,11 @@ class Bot {
     update() {
         if (this.isFalling) return;
 
+        // Continuously apply horizontal speed
+        if (this.sprite.body) { // Ensure body exists
+            this.sprite.body.setVelocityX(this.currentSpeed);
+        }
+
         // If on floor and not already running (e.g., after landing from a jump), play run animation
         if (this.sprite.body.onFloor() && this.sprite.anims && 
             this.sprite.anims.currentAnim && this.sprite.anims.currentAnim.key !== 'bot_running') {
@@ -143,6 +148,11 @@ class Bot {
             return true; // Indicate shield was used
         }
         
+        // Attempt to counteract micro-bounce before checking onFloor for the reactive jump
+        if (this.sprite.body.blocked.down && Math.abs(this.sprite.body.velocity.y) < 5) {
+            this.sprite.body.setVelocityY(0);
+        }
+
         if (this.sprite.body.onFloor()) {
             this.sprite.body.setVelocityY(this.jumpVelocity);
             // Play jump animation

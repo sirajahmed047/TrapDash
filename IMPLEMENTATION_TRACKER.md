@@ -87,6 +87,7 @@ trapdash/
 *   [X] **Bot Sprite Implementation:**
     *   [X] Replace bot `Graphics` with `this.bot = this.physics.add.sprite(x, y, "botPH");`.
     *   [X] Bot already has physics. (Bot does not jump yet).
+    *   [X] **Multiple Bot Implementation:** Successfully added 3 bot instances with independent movement and basic AI.
 *   [X] **Ground Check:**
     *   [X] Ensure ground object is a static physics body and player/bot collide with it (`this.physics.add.collider(this.player, groundObject);`). `this.player.body.onFloor()` will work.
 
@@ -107,9 +108,11 @@ trapdash/
     *   [X] Implement collision callback when player hits a "wall": `this.physics.add.collider(this.player, this.walls, handlePlayerHitObstacle, null, this);`.
 *   [X] **Bot-Obstacle Interaction Response:**
     *   [X] Implement collision callback when bot hits a "wall": `this.physics.add.collider(this.bot, this.walls, handleBotHitObstacle, null, this);`.
+    *   [X] Refined collision response to ensure bots can continue jumping and moving after wall hits.
 *   [X] **AI Bot Jump Logic (in scene's `update` or Bot class):**
     *   [X] Implement logic to detect upcoming obstacles (e.g., raycasting, checking distance to nearest obstacle).
     *   [X] If obstacle detected and bot is on floor, make bot jump: `if (shouldJump && this.bot.body.onFloor()) { this.bot.body.setVelocityY(JUMP_VELOCITY); }`.
+    *   [X] Ensured each bot manages its own AI, falling, and respawning logic independently.
 
 **Phase 4: Implementing Power-Ups (Corresponds to Guide Step 6)**
 *   [X] **Power-Up Asset Preparation (Final assets, if different from placeholders):**
@@ -127,17 +130,17 @@ trapdash/
 *   [X] **Power-Up Effects:**
     *   [X] Implement Speed Boost power-up logic (e.g., temporarily increase `PLAYER_SPEED` or `player.body.velocity.x`).
     *   [X] Implement Shield power-up logic (e.g., set a flag to ignore next obstacle collision).
+*   [X] **Game Flow & Scene Management (Using Phaser Scenes):**
+    *   [X] Create separate scenes for Start Menu, Game Over, etc. (`class MainMenu extends Phaser.Scene { ... }`).
+    *   [X] Add scenes to game config: `scene: [BootScene, MainMenuScene, GameScene, UIScene, GameOverScene]`.
+    *   [X] Transition between scenes: `this.scene.start('GameOverScene');`.
+    *   [X] Refine win/lose conditions and trigger scene transitions or UI updates (adapted for multiple bots).
 
 **Phase 5: Game States and UI (Corresponds to Guide Step 7)**
 *   [ ] **UI Elements (Using Phaser Text or DOM elements):**
     *   [X] Implement Start Game prompt (e.g., 'Press Space to Start').
     *   [X] Implement End Game prompt (e.g., 'Player/Bot Wins! Press R to Restart').
     *   [X] Implement position tracking display (e.g., `this.add.text(x, y, "Position: 1st", { fontSize: '16px', fill: '#fff' }).setScrollFactor(0);`).
-*   [X] **Game Flow & Scene Management (Using Phaser Scenes):**
-    *   [X] Create separate scenes for Start Menu, Game Over, etc. (`class MainMenu extends Phaser.Scene { ... }`).
-    *   [X] Add scenes to game config: `scene: [BootScene, MainMenuScene, GameScene, UIScene, GameOverScene]`.
-    *   [X] Transition between scenes: `this.scene.start('GameOverScene');`.
-    *   [X] Refine win/lose conditions and trigger scene transitions or UI updates.
 *   [ ] **Sound Effects (Basic - using Phaser Audio):**
     *   [ ] Load sounds in `preload`: `this.load.audio('jumpSound', 'assets/sounds/jump.wav');`.
     *   [ ] Play sounds: `this.sound.play('jumpSound');`.
@@ -155,16 +158,11 @@ trapdash/
     *   [ ] Implement hit animation (optional).
 *   [ ] **Particle Effects:**
     *   [X] Jump Dust.
-    *   [ ] Landing Dust/Impact.
-    *   [ ] Speed Boost Trail.
-    *   [ ] Shield Activation/Break visual.
-    *   [ ] Power-Up Collection burst.
 *   [ ] **Screen Shake:**
     *   [X] Implement subtle screen shake on obstacle hit or major events.
 
 **Phase 7: UI/UX Enhancements (Corresponds to update1.md - Step 2)**
 *   [ ] **Power-Up Indication:**
-    *   [ ] Implement timer bar or visual effect on player for active power-up duration.
 *   [ ] **Start Countdown:**
     *   [ ] Implement "3... 2... 1... GO!" visual countdown.
 *   [ ] **Engaging Game Over Screen:**
@@ -181,9 +179,9 @@ trapdash/
     *   [ ] Display leaderboard (Main Menu or separate scene).
 
 **Phase 9: Advanced Gameplay - Bot AI & Obstacles (Corresponds to update1.md - Steps 3 & 4)**
-*   [ ] **Advanced Bot AI:**
+*   [X] **Advanced Bot AI:** (Basic AI structure in place for multiple bots, further refinements pending)
     *   [ ] Implement smarter power-up usage strategy.
-    *   [ ] Refine obstacle avoidance (better timing, "mistakes").
+    *   [X] Refine obstacle avoidance (better timing, "mistakes" - initial implementation and bug fixes for multiple bots).
     *   [ ] Implement simple bot "personalities" (optional).
 *   [ ] **Dynamic Obstacles & Level Variety:**
     *   [ ] Add moving obstacles (e.g., moving platforms).
