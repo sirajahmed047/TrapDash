@@ -26,6 +26,7 @@ class Player {
         this.shieldActive = false;
         this.currentSpeed = normalSpeed; // Player's current operational speed
         this.glowEffectGraphic = null;
+        this.collectedPowerupType = null;
 
         // Link the sprite back to this Player instance for easy access in colliders
         this.sprite.playerInstance = this;
@@ -204,16 +205,36 @@ class Player {
     }
 
     collectPowerup(powerupType) {
-        // console.log(`Player collecting ${powerupType}`); // Removed for general cleanup
-        this.resetPowerupEffects(); // Clear existing effects
+        // Player now collects the power-up, but doesn't activate it immediately.
+        // Activation will happen via a UI button press.
+        if (!this.collectedPowerupType) { // Only collect if no power-up is currently held
+            this.collectedPowerupType = powerupType;
+            // Power-up collected and ready for deployment
+            // We'll need to notify the UIScene to enable the button
+            this.scene.events.emit('playerCollectedPowerup', powerupType);
+        } else {
+            // Player already holding a power-up
+        }
+    }
+
+    // New method to deploy the collected power-up
+    deployCollectedPowerup() {
+        if (!this.collectedPowerupType) {
+            return false;
+        }
+
+        this.resetPowerupEffects(); // Clear any previous active effects first
         this.removeGlow();
 
-        this.activePowerup = powerupType;
+        this.activePowerup = this.collectedPowerupType; // Set the collected one as active
+        const deployedType = this.collectedPowerupType;
+        this.collectedPowerupType = null; // Clear collected power-up
 
-        if (powerupType === 'speed') {
+        // Power-up deployed
+
+        if (deployedType === 'speed') {
             this.currentSpeed = this.boostedSpeed;
             this.applyGlow(GameConfig.SPEED_GLOW_COLOR);
-            // console.log("Player Speed Boost activated!"); // Removed for general cleanup
 
             if (this.powerupTimer) this.powerupTimer.remove();
             this.powerupTimer = this.scene.time.delayedCall(GameConfig.POWERUP_DURATION, () => {
@@ -221,15 +242,17 @@ class Player {
                     this.currentSpeed = this.normalSpeed;
                     this.activePowerup = null;
                     this.removeGlow();
-                    // console.log("Player Speed Boost ended."); // Removed for general cleanup
                 }
             }, [], this.scene);
-        } else if (powerupType === 'shield') {
+        } else if (deployedType === 'shield') {
             this.shieldActive = true;
             this.applyGlow(GameConfig.SHIELD_GLOW_COLOR);
-            // console.log("Player Shield activated!"); // Removed for general cleanup
-            // Shield is one-time use, no timer needed here to remove its active state, only its glow on consumption
+            // Shield is one-time use, effect removed on hit in onHitObstacle
         }
+        
+        // Notify UI that power-up has been used
+        this.scene.events.emit('playerUsedPowerup');
+        return true;
     }
 
     resetPowerupEffects() {

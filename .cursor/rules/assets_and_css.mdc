@@ -1,0 +1,20 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Assets and CSS Organization Guide
+
+This guide outlines where to place visual assets and stylesheets for the `trapdash` project.
+
+*   **CSS Styling**:
+    *   All CSS rules should be placed in `[css/style.css](mdc:css/style.css)`.
+    *   If the styling becomes too complex, consider splitting it into multiple CSS files within the `[css/](mdc:css)` directory and importing them into `style.css` or linking them in `[index.html](mdc:index.html)`.
+
+*   **Assets**:
+    *   The `[assets/](mdc:assets)` directory is the main container for all game assets.
+    *   **Images**: All static images, spritesheets, and textures should be placed in the `[assets/images/](mdc:assets/images)` subdirectory.
+        *   Examples: `player_sprite.png`, `obstacle_wall.png`, `background_tile.png`.
+    *   **Sounds**: All sound effects and music tracks should be placed in the `[assets/sounds/](mdc:assets/sounds)` subdirectory.
+        *   Examples: `jump.wav`, `powerup_collect.mp3`, `background_music.ogg`.
+    *   Create new subdirectories within `assets/` if needed for other types of assets (e.g., `assets/fonts/`, `assets/data/` for JSON files).

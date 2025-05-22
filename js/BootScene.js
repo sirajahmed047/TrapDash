@@ -5,7 +5,7 @@ class BootScene extends Phaser.Scene {
 
     preload() {
         // Load any assets needed for the loading screen or global assets
-        console.log("BootScene: Preload");
+        // Loading game assets
 
         // Load run animation spritesheet
         this.load.spritesheet('player_run_anim', 'assets/images/player_run_sprite.png', {
@@ -41,7 +41,7 @@ class BootScene extends Phaser.Scene {
     }
 
     create() {
-        console.log("BootScene: Create");
+        // Creating animations
 
         // Create player running animation
         this.anims.create({

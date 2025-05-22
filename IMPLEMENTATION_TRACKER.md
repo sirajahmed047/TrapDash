@@ -169,15 +169,32 @@ trapdash/
 
 **Phase 8: Scoring & Leaderboard (Corresponds to update1.md - Step 6)**
 *   [ ] **Refined Scoring System:**
-    *   [ ] Implement scoring based on distance, power-ups collected, opponents overtaken, time to finish.
+    *   [D] Implement scoring based on distance, power-ups collected, opponents overtaken, time to finish. (Deferred by user)
 *   [ ] **Local Leaderboard:**
     *   [ ] Prompt for name (3 initials) on high score.
     *   [ ] Save top scores using browser `localStorage`.
     *   [ ] Display leaderboard (Main Menu or separate scene).
 
+**Phase 8.5: Player Power-Up Collection & Deployment System (New Implementation)**
+*   [X] **Collectible Power-Up Mechanics:**
+    *   [X] Modified `Player.js` to store collected power-ups without immediate activation (`collectedPowerupType` property).
+    *   [X] Updated `collectPowerup()` method to emit `playerCollectedPowerup` event instead of instant activation.
+    *   [X] Implemented `deployCollectedPowerup()` method for manual power-up activation.
+    *   [X] Added logic to prevent collecting multiple power-ups simultaneously.
+*   [X] **UI Power-Up Button Implementation:**
+    *   [X] Created power-up button in `UIScene.js` with dynamic text and state management.
+    *   [X] Implemented button enabling/disabling based on power-up collection status.
+    *   [X] Added hover effects and click handling for power-up deployment.
+    *   [X] Implemented event communication between `UIScene` and `GameScene` for power-up deployment.
+*   [X] **Technical Fixes & Robustness:**
+    *   [X] Resolved Phaser text rendering errors by implementing button recreation instead of `setText()`.
+    *   [X] Fixed retry button in `GameOverScene` to properly restart both `GameScene` and `UIScene`.
+    *   [X] Added defensive camera checks to prevent undefined errors during scene transitions.
+    *   [X] Implemented proper scene cleanup and event listener management.
+
 **Phase 9: Advanced Gameplay - Bot AI & Obstacles (Corresponds to update1.md - Steps 3 & 4)**
-*   [X] **Advanced Bot AI:** (Basic AI structure in place for multiple bots, further refinements pending)
-    *   [ ] Implement smarter power-up usage strategy.
+*   [ ] **Advanced Bot AI:** (Basic AI structure in place for multiple bots, further refinements pending)
+    *   [ ] Implement smarter power-up usage strategy for bots (Player power-up system now complete).
     *   [X] Refine obstacle avoidance (better timing, "mistakes" - initial implementation and bug fixes for multiple bots).
     *   [ ] Implement simple bot "personalities" (optional).
 *   [ ] **Dynamic Obstacles & Level Variety:**

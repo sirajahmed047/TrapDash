@@ -17,7 +17,6 @@ class MainMenuScene extends Phaser.Scene {
 
         // Input listener to start the game
         this.input.keyboard.on('keydown-SPACE', () => {
-            console.log("Space pressed on MainMenuScene, starting GameScene.");
             this.scene.start('GameScene');
             this.scene.launch('UIScene'); // Launch UI scene alongside GameScene
         });

@@ -43,9 +43,10 @@ class GameOverScene extends Phaser.Scene {
         // Retry Button
         const retryButton = this.add.text(centerX, centerY + 50, 'Retry', buttonStyle).setOrigin(0.5).setInteractive();
         retryButton.on('pointerdown', () => {
-            console.log("Retry button clicked, restarting GameScene.");
-            // this.scene.stop('UIScene'); // UIScene should be stopped by GameScene before coming here
-            this.scene.start('GameScene'); 
+            // Stop UIScene first if it's running, then restart both scenes properly
+            this.scene.stop('UIScene');
+            this.scene.start('GameScene');
+            this.scene.launch('UIScene'); // Launch UI scene alongside GameScene, just like MainMenuScene does
         });
         retryButton.on('pointerover', () => retryButton.setStyle(buttonHoverStyle));
         retryButton.on('pointerout', () => retryButton.setStyle(buttonStyle));
@@ -53,7 +54,6 @@ class GameOverScene extends Phaser.Scene {
         // Main Menu Button
         const mainMenuButton = this.add.text(centerX, centerY + 110, 'Main Menu', buttonStyle).setOrigin(0.5).setInteractive();
         mainMenuButton.on('pointerdown', () => {
-            console.log("Main Menu button clicked, going to MainMenuScene.");
             // this.scene.stop('UIScene');
             this.scene.start('MainMenuScene');
         });

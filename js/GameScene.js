@@ -68,23 +68,14 @@ class GameScene extends Phaser.Scene {
         this.groundGroup = groundData.groundGroup;
         this.trackSegments = groundData.trackSegments;
 
-        console.log("GameScene: Ground group created:", this.groundGroup);
-        if (this.groundGroup && this.groundGroup.getChildren()) {
-            console.log("GameScene: Number of ground segments:", this.groundGroup.getChildren().length);
-            this.groundGroup.getChildren().forEach((segment, index) => {
-                console.log(`GameScene: Ground segment ${index} body:`, segment.body ? segment.body.width + 'x' + segment.body.height + ' at ' + segment.body.x + ',' + segment.body.y + ' enabled: ' + segment.body.enable : 'NO BODY');
-            });
-        }
+        // Ground group created successfully
 
         // Player Instance
         // Place player directly on the ground to prevent falling through
         const playerInitialY = this.groundTopY - (64/2); // half of sprite height
         this.player = new Player(this, GameConfig.PLAYER_INITIAL_X, playerInitialY, "player_run_anim", GameConfig.PLAYER_SPEED_NORMAL, GameConfig.PLAYER_SPEED_BOOSTED, GameConfig.JUMP_VELOCITY);
 
-        console.log("GameScene: Player sprite created:", this.player.sprite);
-        if (this.player.sprite) {
-            console.log("GameScene: Player sprite body:", this.player.sprite.body ? this.player.sprite.body.width + 'x' + this.player.sprite.body.height + ' at ' + this.player.sprite.body.x + ',' + this.player.sprite.body.y + ' enabled: ' + this.player.sprite.body.enable : 'NO BODY');
-        }
+        // Player sprite created and configured
 
         // Bot Instance
         // Place bot directly on the ground to prevent falling through
@@ -92,10 +83,7 @@ class GameScene extends Phaser.Scene {
         for (let i = 0; i < 3; i++) {
             const bot = new Bot(this, GameConfig.BOT_INITIAL_X + (i * 50), botInitialY, "bot_run_anim", GameConfig.BOT_SPEED_NORMAL, GameConfig.BOT_SPEED_BOOSTED, GameConfig.JUMP_VELOCITY, i + 1); // Pass i + 1 as botNumber, increased spacing
             this.bots.push(bot);
-            console.log(`GameScene: Bot ${i+1} sprite created:`, bot.sprite);
-            if (bot.sprite) {
-                console.log(`GameScene: Bot ${i+1} sprite body:`, bot.sprite.body ? bot.sprite.body.width + 'x' + bot.sprite.body.height + ' at ' + bot.sprite.body.x + ',' + bot.sprite.body.y + ' enabled: ' + bot.sprite.body.enable : 'NO BODY');
-            }
+            // Bot sprite created and configured
         }
 
         // Power-ups (using functions from powerups.js)
@@ -111,7 +99,7 @@ class GameScene extends Phaser.Scene {
             this.bots.forEach(bot => {
                 this.physics.add.collider(bot.sprite, groundChildren);
             });
-            console.log("GameScene: Player and Bot ground collider set up with groundGroup children.");
+            // Player and Bot ground colliders configured
         } else {
             console.error("GameScene: Ground group is empty or not found, cannot set collider with groundGroup!");
         }
@@ -196,6 +184,22 @@ class GameScene extends Phaser.Scene {
         }).setOrigin(0.5).setScrollFactor(0); // Centered and fixed to camera
 
         this.startCountdown();
+
+        // --- Event Listener for Power-up Deployment from UIScene ---
+        this.events.on('deployPlayerPowerup', () => {
+            if (this.player && !this.gameOver && this.gameStarted) {
+                const deployed = this.player.deployCollectedPowerup();
+                if (deployed) {
+                    // Player power-up deployed via UI
+                    // Potentially play a sound effect for power-up deployment here
+                }
+            }
+        }, this);
+
+        // Ensure listener is removed on shutdown
+        this.events.on(Phaser.Events.SHUTDOWN, () => {
+            this.events.off('deployPlayerPowerup', undefined, this);
+        }, this);
     }
 
     startCountdown() {
@@ -248,7 +252,7 @@ class GameScene extends Phaser.Scene {
         this.gameStarted = true;
         this.countdownText.setVisible(false);
 
-        console.log("Countdown finished. Starting player and bot movement and animations.");
+        // Starting player and bot movement
         if (this.player && this.player.sprite && this.player.sprite.body) {
             this.player.startMoving(); // Use method from Player class
         }
@@ -310,7 +314,7 @@ class GameScene extends Phaser.Scene {
         if (winnerDetermined && !this.gameOver) { // Ensure gameOver is set only once
             this.gameOver = true;
             this.playerWon = winnerDetermined; // playerWon will be 'Player' or 'Bot'
-            console.log('Game Over. Winner: ' + this.playerWon);
+            // Game Over - transitioning to game over scene
 
             if (isPlayer) { // If player is the one crossing and winning/triggering game over
                 this.cameras.main.stopFollow();
@@ -404,7 +408,7 @@ class GameScene extends Phaser.Scene {
 
     // Scene shutdown cleanup
     shutdown() {
-        console.log("GameScene shutting down. Cleaning up player and bots.");
+        // Cleaning up scene resources
         if (this.player && typeof this.player.destroy === 'function') {
             this.player.destroy();
             this.player = null;
@@ -426,6 +430,7 @@ class GameScene extends Phaser.Scene {
         // this.powerupsGroup.destroy(true);
 
         // It's good practice to remove event listeners if any were added manually to scene events
-        // this.events.off('shutdown', this.shutdown, this);
+        // this.events.off('shutdown', this.shutdown, this); // This one is tricky, as it's removing itself.
+                                                              // The one added above for deployPlayerPowerup is safer.
     }
 }

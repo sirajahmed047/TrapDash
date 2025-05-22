@@ -1,0 +1,29 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# JavaScript Code Organization Guide for TrapDash
+
+This guide specifies where different types of JavaScript code should be placed within the `[js/](mdc:js/)` directory to maintain a clean and organized codebase.
+
+*   **Core Game Configuration & Initialization**:
+    *   `[js/game.js](mdc:js/game.js)`: This file should contain the main Phaser game instance creation (`new Phaser.Game(config)`). It initializes the overall game.
+    *   `[js/GameConfig.js](mdc:js/GameConfig.js)`: This file should define and export the Phaser game configuration object. This includes settings like type, width, height, physics, and the initial list of scenes.
+
+*   **Scene Management**:
+    *   `[js/BootScene.js](mdc:js/BootScene.js)`: Handles preloading of essential assets required for the loading screen or initial game setup before other scenes start.
+    *   `[js/MainMenuScene.js](mdc:js/MainMenuScene.js)`: Logic for the main menu, including start game buttons and potentially links to options or leaderboards.
+    *   `[js/GameScene.js](mdc:js/GameScene.js)`: The core gameplay scene. This includes player and bot movement, obstacle interactions, power-up logic, collision detection, and game state management during play.
+    *   `[js/UIScene.js](mdc:js/UIScene.js)`: Manages UI elements that overlay the `GameScene`, such as score, countdowns, power-up indicators, and health/status displays. This scene runs in parallel with `GameScene`.
+    *   `[js/GameOverScene.js](mdc:js/GameOverScene.js)`: Logic for the game over screen, displaying scores, win/loss messages, and options to retry or return to the main menu.
+
+*   **Game Entities**:
+    *   `[js/player.js](mdc:js/player.js)`: Contains the `Player` class, defining player-specific properties, animations, controls (jump, etc.), and interactions.
+    *   `[js/bot.js](mdc:js/bot.js)`: Contains the `Bot` class (or classes if different bot types exist), defining bot-specific AI, movement, animations, and interactions.
+
+*   **Game Mechanics Managers**:
+    *   `[js/obstacles.js](mdc:js/obstacles.js)`: Manages the creation, placement, and properties of obstacles. This could be an `ObstacleManager` class or a collection of related functions.
+    *   `[js/powerups.js](mdc:js/powerups.js)`: Manages the creation, spawning, collection, and effects of power-ups. This could be a `PowerupManager` class or related functions.
+
+*   **General Rule**: New JavaScript files for distinct pieces of functionality (e.g., a new type of enemy, a complex UI component) should be created within the `js/` directory and named descriptively.

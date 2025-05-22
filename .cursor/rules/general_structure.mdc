@@ -1,0 +1,14 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# General Project Structure Guide
+
+This document outlines the main structural components of the `trapdash` project.
+
+*   **Main Entry Point**: The primary HTML file for the game is `[index.html](mdc:index.html)`. It should contain the basic HTML structure and the container for the Phaser game.
+*   **Implementation Tracking**: The `[IMPLEMENTATION_TRACKER.md](mdc:IMPLEMENTATION_TRACKER.md)` file is used to track the progress of game development phases and features. All new features or changes to existing ones should be reflected here.
+*   **JavaScript Logic**: All game-related JavaScript code is located in the `[js/](mdc:js/)` directory. Refer to `javascript_organization.mdc` for detailed structure within this directory.
+*   **Styling**: CSS styles are located in the `[css/](mdc:css/)` directory, primarily in `[css/style.css](mdc:css/style.css)`.
+*   **Assets**: Game assets such as images and sounds are stored in the `[assets/](mdc:assets/)` directory. Refer to `assets_and_css.mdc` for more details.
