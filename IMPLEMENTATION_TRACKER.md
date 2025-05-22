@@ -147,28 +147,25 @@ trapdash/
     *   [ ] Add sound for jump, power-up collection, collision.
     *   *(User preference: Defer sound implementation for later)*
 
----
-(Optional sections for more advanced features like different bot levels, more power-ups, detailed scoring, etc., can be added later)
-
 **Phase 6: Visual Polish - Animations & Effects (Corresponds to update1.md - Step 1)**
 *   [ ] **Character Animations:**
     *   [X] Implement smooth run animation.
     *   [X] Implement jump animation.
-    *   [ ] Implement fall animation.
-    *   [ ] Implement hit animation (optional).
+    *   [D] Implement fall animation. (Deferred)
+    *   [D] Implement hit animation (optional). (Deferred)
 *   [ ] **Particle Effects:**
     *   [X] Jump Dust.
 *   [ ] **Screen Shake:**
     *   [X] Implement subtle screen shake on obstacle hit or major events.
 
 **Phase 7: UI/UX Enhancements (Corresponds to update1.md - Step 2)**
-*   [ ] **Power-Up Indication:**
-*   [ ] **Start Countdown:**
-    *   [ ] Implement "3... 2... 1... GO!" visual countdown.
-*   [ ] **Engaging Game Over Screen:**
-    *   [ ] Display final score/time.
-    *   [ ] Add clear "Retry" and "Main Menu" buttons.
-    *   [ ] Add "Well Done!" or "Try Again!" messages.
+*   [D] **Power-Up Indication:** (Deferred)
+*   [X] **Start Countdown:**
+    *   [X] Implement "3... 2... 1... GO!" visual countdown.
+*   [X] **Engaging Game Over Screen:** (Partially complete)
+    *   [ ] Display final score/time. (Deferred to Phase 8)
+    *   [X] Add clear "Retry" and "Main Menu" buttons.
+    *   [X] Add "Well Done!" or "Try Again!" messages.
 
 **Phase 8: Scoring & Leaderboard (Corresponds to update1.md - Step 6)**
 *   [ ] **Refined Scoring System:**

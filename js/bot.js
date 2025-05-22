@@ -1,9 +1,10 @@
 class Bot {
-    constructor(scene, x, y, textureKey, normalSpeed, boostedSpeed, jumpVelocity) {
+    constructor(scene, x, y, textureKey, normalSpeed, boostedSpeed, jumpVelocity, botNumber) {
         this.scene = scene;
         this.normalSpeed = normalSpeed;
         this.boostedSpeed = boostedSpeed;
         this.jumpVelocity = jumpVelocity; // Store jump velocity
+        this.botId = `Bot ${botNumber}`; // Store bot ID
 
         this.sprite = scene.physics.add.sprite(x, y, textureKey);
         this.sprite.setScale(1);
@@ -25,6 +26,14 @@ class Bot {
 
         // Link the sprite back to this Bot instance for easy access in colliders
         this.sprite.botInstance = this;
+        
+        // Name Tag
+        this.nameTag = this.scene.add.text(this.sprite.x, this.sprite.y - 35, this.botId, { 
+            fontFamily: 'Arial', 
+            fontSize: '16px', 
+            color: '#ffffff', 
+            align: 'center' 
+        }).setOrigin(0.5, 1);
         
         // Start running animation
         if (this.sprite.anims) {
@@ -59,6 +68,11 @@ class Bot {
             this.glowEffectGraphic.setPosition(this.sprite.x, this.sprite.y);
         } else if (this.glowEffectGraphic && !this.activePowerup) {
             this.removeGlow();
+        }
+        
+        // Update name tag position
+        if (this.nameTag) {
+            this.nameTag.setPosition(this.sprite.x, this.sprite.y - (this.sprite.displayHeight / 2) - 5).setDepth(this.sprite.depth + 1);
         }
     }
 
@@ -175,6 +189,7 @@ class Bot {
         this.sprite.setVisible(false);
         this.sprite.body.setEnable(false);
         this.sprite.body.setVelocity(0, 0);
+        if (this.nameTag) this.nameTag.setVisible(false);
 
         this.resetPowerupEffects();
         this.removeGlow();
@@ -194,6 +209,7 @@ class Bot {
             this.sprite.body.setEnable(true);
             this.sprite.body.setVelocityY(0);
             this.isFalling = false;
+            if (this.nameTag) this.nameTag.setVisible(true);
             
             // After respawn, ensure running animation plays if on floor
             if (this.sprite.body.onFloor()) {
@@ -205,6 +221,8 @@ class Bot {
     onFinish() {
         this.sprite.body.setVelocityX(0);
         this.removeGlow();
+        // Name tag remains visible
+        this.isFinished = true; // Ensure this bot is marked as finished
     }
 
     collectPowerup(powerupType) {
@@ -258,6 +276,38 @@ class Bot {
         if (this.glowEffectGraphic) {
             this.glowEffectGraphic.destroy();
             this.glowEffectGraphic = null;
+        }
+    }
+
+    startMoving() {
+        if (this.sprite && this.sprite.body) {
+            // Ensure runAnimKey is defined or use a default like 'bot_running'
+            const runAnimKey = this.sprite.texture.key.includes('bot') ? 'bot_running' : 'player_running'; // Basic differentiation, though should be 'bot_running'
+            this.sprite.body.setVelocityX(this.currentSpeed);
+            this.sprite.anims.play(runAnimKey, true);
+        }
+        if (this.nameTag) {
+            this.nameTag.setVisible(true);
+        }
+    }
+
+    // Call this method when the scene is shutting down or bot is permanently removed
+    destroy() {
+        if (this.sprite) {
+            this.sprite.destroy();
+            this.sprite = null;
+        }
+        if (this.nameTag) {
+            this.nameTag.destroy();
+            this.nameTag = null;
+        }
+        if (this.glowEffectGraphic) {
+            this.glowEffectGraphic.destroy();
+            this.glowEffectGraphic = null;
+        }
+        if (this.powerupTimer) {
+            this.powerupTimer.remove();
+            this.powerupTimer = null;
         }
     }
 }

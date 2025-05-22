@@ -11,6 +11,11 @@ class GameScene extends Phaser.Scene {
         this.isPlayerActuallyFinished = false;
         this.botsFinishedCount = 0;
 
+        // Countdown related
+        this.countdownText = null;
+        this.countdownTimer = null;
+        this.countdownValue = 3; // Start from 3
+
         // References to game objects
         this.player = null;
         this.bots = [];
@@ -85,11 +90,11 @@ class GameScene extends Phaser.Scene {
         // Place bot directly on the ground to prevent falling through
         const botInitialY = this.groundTopY - (64/2); // half of sprite height
         for (let i = 0; i < 3; i++) {
-            const bot = new Bot(this, GameConfig.BOT_INITIAL_X + (i * 30), botInitialY, "bot_run_anim", GameConfig.BOT_SPEED_NORMAL, GameConfig.BOT_SPEED_BOOSTED, GameConfig.JUMP_VELOCITY);
+            const bot = new Bot(this, GameConfig.BOT_INITIAL_X + (i * 50), botInitialY, "bot_run_anim", GameConfig.BOT_SPEED_NORMAL, GameConfig.BOT_SPEED_BOOSTED, GameConfig.JUMP_VELOCITY, i + 1); // Pass i + 1 as botNumber, increased spacing
             this.bots.push(bot);
-            console.log(`GameScene: Bot ${i} sprite created:`, bot.sprite);
+            console.log(`GameScene: Bot ${i+1} sprite created:`, bot.sprite);
             if (bot.sprite) {
-                console.log(`GameScene: Bot ${i} sprite body:`, bot.sprite.body ? bot.sprite.body.width + 'x' + bot.sprite.body.height + ' at ' + bot.sprite.body.x + ',' + bot.sprite.body.y + ' enabled: ' + bot.sprite.body.enable : 'NO BODY');
+                console.log(`GameScene: Bot ${i+1} sprite body:`, bot.sprite.body ? bot.sprite.body.width + 'x' + bot.sprite.body.height + ' at ' + bot.sprite.body.x + ',' + bot.sprite.body.y + ' enabled: ' + bot.sprite.body.enable : 'NO BODY');
             }
         }
 
@@ -165,19 +170,92 @@ class GameScene extends Phaser.Scene {
 
         // The game effectively starts as soon as this scene is created.
         // MainMenuScene handles the "Press SPACE to start"
-        this.gameStarted = true; 
+        // this.gameStarted = true; 
         
         // Start movement after a small delay to ensure physics bodies are fully set up
-        this.time.delayedCall(100, () => {
-            console.log("Starting player and bot movement");
-            if (this.player && this.player.sprite && this.player.sprite.body) {
-                this.player.sprite.body.setVelocityX(this.player.currentSpeed);
+        // this.time.delayedCall(100, () => {
+        //     console.log("Starting player and bot movement");
+        //     if (this.player && this.player.sprite && this.player.sprite.body) {
+        //         this.player.sprite.body.setVelocityX(this.player.currentSpeed);
+        //     }
+        //     this.bots.forEach(bot => {
+        //         if (bot && bot.sprite && bot.sprite.body) {
+        //             bot.sprite.body.setVelocityX(bot.currentSpeed);
+        //         }
+        //     });
+        // });
+
+        // Countdown Text
+        this.countdownText = this.add.text(this.configWidth / 2, this.configHeight / 2, '', { 
+            fontFamily: 'Arial Black', 
+            fontSize: '128px', 
+            color: '#ffff00', 
+            stroke: '#000000', 
+            strokeThickness: 8,
+            align: 'center' 
+        }).setOrigin(0.5).setScrollFactor(0); // Centered and fixed to camera
+
+        this.startCountdown();
+    }
+
+    startCountdown() {
+        this.gameStarted = false; // Ensure game logic doesn't run
+        this.countdownValue = 3; // Reset countdown value
+        this.countdownText.setText(this.countdownValue.toString()).setVisible(true);
+
+        // Ensure player and bots are stationary
+        if (this.player && this.player.sprite && this.player.sprite.body) {
+            this.player.sprite.body.setVelocityX(0);
+            this.player.sprite.anims.stop(); // Stop animation
+        }
+        this.bots.forEach(bot => {
+            if (bot && bot.sprite && bot.sprite.body) {
+                bot.sprite.body.setVelocityX(0);
+                bot.sprite.anims.stop(); // Stop animation
             }
-            this.bots.forEach(bot => {
-                if (bot && bot.sprite && bot.sprite.body) {
-                    bot.sprite.body.setVelocityX(bot.currentSpeed);
-                }
-            });
+        });
+        
+        if (this.countdownTimer) {
+            this.countdownTimer.remove(false); // Remove existing timer if any
+        }
+        this.countdownTimer = this.time.addEvent({
+            delay: 1000,
+            callback: this.updateCountdown,
+            callbackScope: this,
+            loop: true
+        });
+    }
+
+    updateCountdown() {
+        this.countdownValue--;
+
+        if (this.countdownValue > 0) {
+            this.countdownText.setText(this.countdownValue.toString());
+        } else if (this.countdownValue === 0) {
+            this.countdownText.setText('GO!');
+        } else { // countdownValue < 0, means GO! was shown, now start game
+            if (this.countdownTimer) {
+                this.countdownTimer.remove(false);
+                this.countdownTimer = null;
+            }
+            this.startGamePlay();
+        }
+    }
+
+    startGamePlay() {
+        if (this.gameStarted) return; // Prevent multiple starts
+
+        this.gameStarted = true;
+        this.countdownText.setVisible(false);
+
+        console.log("Countdown finished. Starting player and bot movement and animations.");
+        if (this.player && this.player.sprite && this.player.sprite.body) {
+            this.player.startMoving(); // Use method from Player class
+        }
+        this.bots.forEach(bot => {
+            if (bot && bot.sprite && bot.sprite.body) {
+                bot.startMoving(); // Use method from Bot class
+            }
         });
     }
 
@@ -207,11 +285,24 @@ class GameScene extends Phaser.Scene {
             if (this.isPlayerActuallyFinished) {
                 winnerDetermined = 'Player';
             } else if (this.botsFinishedCount > 0 && !this.isPlayerActuallyFinished) {
-                // If any bot has finished and the player hasn't, the "Bot" wins.
-                // We don't distinguish between bots for the win message here.
-                winnerDetermined = 'Bot';
+                // If any bot has finished and the player hasn't, find out which bot was first among those finished.
+                let firstBotWinner = null;
+                for (const bot of this.bots) {
+                    if (bot.isFinished) { // isFinished is set in Bot's onFinish()
+                        if (!firstBotWinner) { // Take the first one we find that crossed
+                            firstBotWinner = bot;
+                            break; 
+                        }
+                        // Potentially add logic here if multiple bots cross nearly simultaneously and you want to check sprite.x
+                    }
+                }
+                if (firstBotWinner) {
+                    winnerDetermined = firstBotWinner.botId; // Use the botId (e.g., "Bot 1")
+                } else {
+                    winnerDetermined = 'Bot'; // Fallback, though should not happen if botsFinishedCount > 0
+                }
             }
-            // Scenario where multiple bots finish, but player hasn't - "Bot" still wins.
+            // Scenario where multiple bots finish, but player hasn't - firstBotWinner logic handles this.
             // If player and a bot finish in very quick succession, the first one to trigger this will set gameOver.
         }
 
@@ -236,13 +327,13 @@ class GameScene extends Phaser.Scene {
 
 
     update(time, delta) {
-        if (this.gameOver) {
-            // Stop all characters if game is over
-            if (this.player && this.player.sprite.body) { // Check if body exists
+        if (!this.gameStarted || this.gameOver) { // Added !this.gameStarted check
+            // Stop all characters if game is not started or over
+            if (this.player && this.player.sprite.body) {
                 this.player.sprite.body.setVelocityX(0);
             }
             this.bots.forEach(bot => {
-                if (bot && bot.sprite.body) { // Check if body exists
+                if (bot && bot.sprite.body) {
                     bot.sprite.body.setVelocityX(0);
                 }
             });
@@ -309,5 +400,32 @@ class GameScene extends Phaser.Scene {
         if (!this.cameras || !this.cameras.main) return;
         
         this.cameras.main.shake(duration, intensity);
+    }
+
+    // Scene shutdown cleanup
+    shutdown() {
+        console.log("GameScene shutting down. Cleaning up player and bots.");
+        if (this.player && typeof this.player.destroy === 'function') {
+            this.player.destroy();
+            this.player = null;
+        }
+        this.bots.forEach(bot => {
+            if (bot && typeof bot.destroy === 'function') {
+                bot.destroy();
+            }
+        });
+        this.bots = [];
+
+        if (this.countdownTimer) {
+            this.countdownTimer.remove(false);
+            this.countdownTimer = null;
+        }
+        // Other group cleanups if necessary (Phaser usually handles children of groups)
+        // this.groundGroup.destroy(true); // Example, if not automatically handled or if children need specific cleanup
+        // this.wallsGroup.destroy(true);
+        // this.powerupsGroup.destroy(true);
+
+        // It's good practice to remove event listeners if any were added manually to scene events
+        // this.events.off('shutdown', this.shutdown, this);
     }
 }

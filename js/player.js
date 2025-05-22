@@ -30,6 +30,14 @@ class Player {
         // Link the sprite back to this Player instance for easy access in colliders
         this.sprite.playerInstance = this;
 
+        // Name Tag
+        this.nameTag = this.scene.add.text(this.sprite.x, this.sprite.y - 35, 'Player', { 
+            fontFamily: 'Arial', 
+            fontSize: '16px', 
+            color: '#ffffff', 
+            align: 'center' 
+        }).setOrigin(0.5, 1);
+
         // Start playing running animation if available
         if (this.sprite.anims) {
             this.sprite.play('player_running', true);
@@ -41,6 +49,18 @@ class Player {
                 this.sprite.play('player_running', true);
             }
         }, this);
+    }
+
+    startMoving() {
+        if (this.sprite && this.sprite.body) {
+            // Ensure runAnimKey is defined or use a default like 'player_running'
+            const runAnimKey = this.sprite.texture.key.includes('player') ? 'player_running' : 'bot_running'; // Basic differentiation
+            this.sprite.body.setVelocityX(this.currentSpeed);
+            this.sprite.anims.play(runAnimKey, true);
+        }
+        if (this.nameTag) {
+            this.nameTag.setVisible(true);
+        }
     }
 
     update(cursors) {
@@ -93,6 +113,11 @@ class Player {
         } else if (this.glowEffectGraphic && !this.activePowerup) {
             this.removeGlow();
         }
+
+        // Update name tag position
+        if (this.nameTag) {
+            this.nameTag.setPosition(this.sprite.x, this.sprite.y - (this.sprite.displayHeight / 2) - 5).setDepth(this.sprite.depth + 1);
+        }
     }
 
     // Create dust particle effect when jumping
@@ -141,6 +166,7 @@ class Player {
         this.sprite.setVisible(false);
         this.sprite.body.setEnable(false);
         this.sprite.body.setVelocity(0, 0);
+        if (this.nameTag) this.nameTag.setVisible(false);
 
         this.resetPowerupEffects();
         this.removeGlow();
@@ -160,6 +186,7 @@ class Player {
             this.sprite.body.setEnable(true);
             this.sprite.body.setVelocityY(0); 
             this.isFalling = false;
+            if (this.nameTag) this.nameTag.setVisible(true);
             
             // After respawn, ensure running animation plays if on floor
             if (this.sprite.body.onFloor()) {
@@ -173,6 +200,7 @@ class Player {
         this.sprite.body.setAcceleration(0,0);
         this.sprite.body.allowGravity = false; // Keep from falling if finish line is mid-air
         this.removeGlow();
+        // Name tag remains visible
     }
 
     collectPowerup(powerupType) {
@@ -232,6 +260,26 @@ class Player {
         if (this.glowEffectGraphic) {
             this.glowEffectGraphic.destroy();
             this.glowEffectGraphic = null;
+        }
+    }
+
+    // Call this method when the scene is shutting down or player is permanently removed
+    destroy() {
+        if (this.sprite) {
+            this.sprite.destroy();
+            this.sprite = null;
+        }
+        if (this.nameTag) {
+            this.nameTag.destroy();
+            this.nameTag = null;
+        }
+        if (this.glowEffectGraphic) {
+            this.glowEffectGraphic.destroy();
+            this.glowEffectGraphic = null;
+        }
+        if (this.powerupTimer) {
+            this.powerupTimer.remove();
+            this.powerupTimer = null;
         }
     }
 }
