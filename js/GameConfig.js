@@ -43,7 +43,11 @@ const GameConfig = {
     UI_FONT_COLOR: '#FFF',
     UI_BUTTON_COLOR: '#555',
     UI_BUTTON_HOVER_COLOR: '#777',
-    POWERUP_ICON_Y_OFFSET: -10
+    POWERUP_ICON_Y_OFFSET: -10,
+    
+    // Moving Obstacles Configuration
+    MOVING_PLATFORM_COLOR_VERTICAL: 0x8B4513,   // Brown for vertical platforms
+    MOVING_PLATFORM_COLOR_HORIZONTAL: 0x654321  // Darker brown for horizontal platforms
 };
 // Make it available globally if not using modules
 // window.GameConfig = GameConfig; // Or handle via script loading order

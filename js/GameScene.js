@@ -22,6 +22,7 @@ class GameScene extends Phaser.Scene {
         this.groundGroup = null;
         this.trackSegments = null;
         this.wallsGroup = null;
+        this.movingObstaclesGroup = null;
         this.powerupsGroup = null;
         this.finishLine = null;
         
@@ -79,11 +80,17 @@ class GameScene extends Phaser.Scene {
 
         // Bot Instance
         // Place bot directly on the ground to prevent falling through
-        const botInitialY = this.groundTopY - (64/2); // half of sprite height
+        const botInitialY = this.groundTopY - (64/2);         // Create bots with different personalities
+        const personalities = ['aggressive', 'cautious', 'erratic']; // Different personality for each bot
+        console.log('🎭 Creating bots with personalities:', personalities);
+        
         for (let i = 0; i < 3; i++) {
-            const bot = new Bot(this, GameConfig.BOT_INITIAL_X + (i * 50), botInitialY, "bot_run_anim", GameConfig.BOT_SPEED_NORMAL, GameConfig.BOT_SPEED_BOOSTED, GameConfig.JUMP_VELOCITY, i + 1); // Pass i + 1 as botNumber, increased spacing
+            const personality = personalities[i] || 'balanced'; // Use personality or fallback to balanced
+            console.log(`🎯 Creating bot ${i + 1} with personality: ${personality}`);
+            
+            const bot = new Bot(this, GameConfig.BOT_INITIAL_X + (i * 50), botInitialY, "bot_run_anim", GameConfig.BOT_SPEED_NORMAL, GameConfig.BOT_SPEED_BOOSTED, GameConfig.JUMP_VELOCITY, i + 1, personality); // Pass personality
             this.bots.push(bot);
-            // Bot sprite created and configured
+            // Bot sprite created and configured with personality: ${personality}
         }
 
         // Power-ups (using functions from powerups.js)
@@ -91,6 +98,9 @@ class GameScene extends Phaser.Scene {
 
         // Walls Obstacles (using function from obstacles.js)
         this.wallsGroup = createWalls(this, this.groundTopY);
+
+        // Moving Obstacles (using function from obstacles.js)
+        this.movingObstaclesGroup = createMovingObstacles(this, this.groundTopY);
 
         // --- Physics Colliders and Overlaps ---
         if (this.groundGroup && this.groundGroup.getChildren().length > 0) {
@@ -110,6 +120,31 @@ class GameScene extends Phaser.Scene {
         this.bots.forEach(bot => {
             this.physics.add.collider(bot.sprite, this.wallsGroup, (botSprite, wall) => {
                 botSprite.botInstance.onHitObstacle(wall);
+            }, null, this);
+        });
+
+        // Moving Obstacles Collisions
+        this.physics.add.collider(this.player.sprite, this.movingObstaclesGroup, (playerSprite, platform) => {
+            // For moving platforms, we can either land on them or hit them
+            // If player is above the platform, it's a landing, otherwise it's an obstacle hit
+            if (playerSprite.body.bottom <= platform.body.top + 10) {
+                // Player is landing on platform - allow standing
+                // This collision will naturally stop the player from falling through
+            } else {
+                // Player hit the side of a moving platform
+                playerSprite.playerInstance.onHitObstacle(platform);
+            }
+        }, null, this);
+        
+        this.bots.forEach(bot => {
+            this.physics.add.collider(bot.sprite, this.movingObstaclesGroup, (botSprite, platform) => {
+                // Same logic for bots
+                if (botSprite.body.bottom <= platform.body.top + 10) {
+                    // Bot is landing on platform
+                } else {
+                    // Bot hit the side of a moving platform
+                    botSprite.botInstance.onHitObstacle(platform);
+                }
             }, null, this);
         });
 
@@ -364,7 +399,7 @@ class GameScene extends Phaser.Scene {
             if (bot && bot.sprite.active) { // Check if sprite is active
                 bot.update(); // General update for movement, animations, glow
                 // AI decisions based on environment and bot's specific parameters
-                bot.updateAI(this.trackSegments, this.wallsGroup, GameConfig.BOT_JUMP_LOOKAHEAD_WALL, GameConfig.BOT_JUMP_LOOKAHEAD_GAP);
+                bot.updateAI(this.trackSegments, this.wallsGroup, this.movingObstaclesGroup, GameConfig.BOT_JUMP_LOOKAHEAD_WALL, GameConfig.BOT_JUMP_LOOKAHEAD_GAP);
             }
         });
 

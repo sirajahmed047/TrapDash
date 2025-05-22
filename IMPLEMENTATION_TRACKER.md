@@ -196,9 +196,9 @@ trapdash/
 *   [ ] **Advanced Bot AI:** (Basic AI structure in place for multiple bots, further refinements pending)
     *   [ ] Implement smarter power-up usage strategy for bots (Player power-up system now complete).
     *   [X] Refine obstacle avoidance (better timing, "mistakes" - initial implementation and bug fixes for multiple bots).
-    *   [ ] Implement simple bot "personalities" (optional).
+    *   [X] Implement simple bot "personalities" (optional) - COMPLETED: Added 4 personality types with distinct behaviors.
 *   [ ] **Dynamic Obstacles & Level Variety:**
-    *   [ ] Add moving obstacles (e.g., moving platforms).
+    *   [X] Add moving obstacles (e.g., moving platforms).
     *   [ ] Add "destructible" obstacles (visual effect only).
     *   [ ] Implement varied obstacle patterns/chunks.
     *   [ ] Add visual cues for gaps (e.g., using `obstacle_gap_visual_cue.png` - formerly in Phase 3).
