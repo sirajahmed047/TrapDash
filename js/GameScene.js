@@ -530,6 +530,12 @@ class GameScene extends Phaser.Scene {
     blastOffCharacter(character) {
         if (character.isBlasted) return; // Already blasted
         
+        // Check if character has shield protection
+        if (character.checkShieldProtection && character.checkShieldProtection('bomb')) {
+            console.log(`💥 Bomb blast blocked by ${character.name || (character.botId ? `Bot ${character.botId}` : 'Player')}'s shield!`);
+            return; // Shield blocked the attack
+        }
+        
         const characterName = character.name || (character.botId ? `Bot ${character.botId}` : 'Player');
         console.log(`💥 ${characterName} has been blasted off! Will respawn in 2 seconds.`);
         
@@ -948,6 +954,12 @@ class GameScene extends Phaser.Scene {
 
     shurikenKillCharacter(character) {
         if (character.isBlasted) return; // Already killed
+        
+        // Check if character has shield protection
+        if (character.checkShieldProtection && character.checkShieldProtection('shuriken')) {
+            console.log(`🌟 Shuriken attack blocked by ${character.name || (character.botId ? `Bot ${character.botId}` : 'Player')}'s shield!`);
+            return; // Shield blocked the attack
+        }
         
         const characterName = character.name || (character.botId ? `Bot ${character.botId}` : 'Player');
         console.log(`💀 ${characterName} was killed by shuriken! Will respawn in 2 seconds.`);

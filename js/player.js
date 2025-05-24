@@ -28,6 +28,7 @@ class Player {
         this.glowEffectGraphic = null;
         this.collectedPowerupType = null;
         this.lightningStrikeSprite = null; // For tracking lightning animation
+        this.shieldAnimationSprite = null; // For tracking shield animation
         
         // Moving platform tracking
         this.standingOnPlatform = null;
@@ -117,36 +118,11 @@ class Player {
             this.standingOnPlatform = null;
         }
 
-        // Player jump logic - Enhanced for moving platforms
-        // Check if player can jump (on floor OR on a moving platform)
-        let canJump = this.sprite.body.onFloor() || 
-                     (this.sprite.body.blocked.down && Math.abs(this.sprite.body.velocity.y) < 10);
+        // Handle continuous jumping with space bar
+        const isOnFloorOrPlatform = this.sprite.body.onFloor() || 
+                                   (this.sprite.body.blocked.down && Math.abs(this.sprite.body.velocity.y) < 10);
         
-        // Check if player is standing on a tracked moving platform
-        if (!canJump && this.standingOnPlatform) {
-            const timeSinceContact = this.scene.time.now - this.platformContactTime;
-            
-            // Allow jumping if we've been in contact with the platform recently (within 100ms)
-            if (timeSinceContact < 100) {
-                const playerBottom = this.sprite.body.bottom;
-                const playerCenterX = this.sprite.body.center.x;
-                const platformTop = this.standingOnPlatform.body.top;
-                const platformLeft = this.standingOnPlatform.body.left;
-                const platformRight = this.standingOnPlatform.body.right;
-                
-                // Verify player is still roughly on the platform
-                const isAbovePlatform = playerBottom >= platformTop - 8 && playerBottom <= platformTop + 20;
-                const isWithinPlatformWidth = playerCenterX >= platformLeft - 15 && playerCenterX <= platformRight + 15;
-                
-                if (isAbovePlatform && isWithinPlatformWidth) {
-                    canJump = true;
-                    console.log(`🏃 Player can jump from tracked platform at (${this.standingOnPlatform.x.toFixed(1)}, ${this.standingOnPlatform.y.toFixed(1)}) - contact time: ${timeSinceContact}ms`);
-                }
-            } else {
-                // Clear old platform reference if too much time has passed
-                this.standingOnPlatform = null;
-            }
-        }
+        const canJump = isOnFloorOrPlatform || this.standingOnPlatform;
         
         // Debug: Log jump state occasionally when space is pressed
         if (cursors.space.isDown && this.scene.game.loop.frame % 10 === 0) {
@@ -168,6 +144,15 @@ class Player {
             this.glowEffectGraphic.setPosition(this.sprite.x, this.sprite.y);
         } else if (this.glowEffectGraphic && !this.activePowerup) {
             this.removeGlow();
+        }
+
+        // Update shield animation position if active
+        if (this.shieldAnimationSprite && this.shieldAnimationSprite.active) {
+            this.shieldAnimationSprite.setPosition(this.sprite.x, this.sprite.y);
+        } else if (this.shieldActive && !this.shieldAnimationSprite) {
+            // Shield is active but animation is missing - recreate it
+            console.log(`⚠️ Shield active but animation missing for Player - recreating`);
+            this.createShieldAnimation();
         }
 
         // Update name tag position
@@ -198,25 +183,40 @@ class Player {
         });
     }
 
-    onHitObstacle(_obstacle) {
+    // Check if shield protects against attacks (lightning, shuriken, bomb)
+    checkShieldProtection(attackType) {
         if (this.shieldActive) {
-            this.shieldActive = false;
-            this.activePowerup = null; // Shield consumed
-            this.removeGlow();
-            return true; // Indicate shield was used
+            console.log(`🛡️ Player's shield protected against ${attackType} attack!`);
+            this.deactivateShield();
+            return true; // Shield blocked the attack
         }
+        return false; // No shield protection
+    }
+
+    // Deactivate shield and remove visual effects
+    deactivateShield() {
+        this.shieldActive = false;
+        this.activePowerup = null; // Shield consumed
+        this.removeShieldAnimation();
+        this.removeGlow();
+        console.log(`🛡️ Player's shield has been consumed!`);
+    }
+
+    onHitObstacle(_obstacle) {
+        // Shield does NOT protect against environmental obstacles like walls
+        // Shield only protects against offensive power-ups (lightning, shuriken, bomb)
         
         // Add camera shake on hit
         if (this.scene.shakeCamera) {
             this.scene.shakeCamera(GameConfig.PLAYER_OBSTACLE_SHAKE_INTENSITY, GameConfig.PLAYER_OBSTACLE_SHAKE_DURATION);
         }
 
-        // If not shielded and hit a wall, ensure Y velocity is not making onFloor() false due to tiny bounce
+        // If hit a wall, ensure Y velocity is not making onFloor() false due to tiny bounce
         if (this.sprite.body.onFloor() || (this.sprite.body.blocked.down && Math.abs(this.sprite.body.velocity.y) < 5)) {
             this.sprite.body.setVelocityY(0); 
         }
         
-        return false; // Indicate shield was not used
+        return false; // Shield is not consumed by environmental obstacles
     }
 
     onFall() {
@@ -283,16 +283,16 @@ class Player {
             return false;
         }
 
-        this.resetPowerupEffects(); // Clear any previous active effects first
-        this.removeGlow();
-
-        this.activePowerup = this.collectedPowerupType; // Set the collected one as active
         const deployedType = this.collectedPowerupType;
         this.collectedPowerupType = null; // Clear collected power-up
 
         // Power-up deployed
 
         if (deployedType === 'speed') {
+            this.resetPowerupEffects(); // Clear any previous active effects first
+            this.removeGlow();
+            
+            this.activePowerup = deployedType; // Set the collected one as active
             this.currentSpeed = this.boostedSpeed;
             this.applyGlow(GameConfig.SPEED_GLOW_COLOR);
 
@@ -305,18 +305,42 @@ class Player {
                 }
             }, [], this.scene);
         } else if (deployedType === 'shield') {
+            // Special handling for shield - don't reset shield effects first
+            if (this.powerupTimer) {
+                this.powerupTimer.remove(false);
+                this.powerupTimer = null;
+            }
+            // Only reset non-shield powerups
+            if (this.activePowerup && this.activePowerup !== 'shield') {
+                this.activePowerup = null;
+                this.currentSpeed = this.normalSpeed;
+                this.removeGlow(); // Remove previous glow only
+            }
+            
+            this.activePowerup = deployedType;
             this.shieldActive = true;
             this.applyGlow(GameConfig.SHIELD_GLOW_COLOR);
-            // Shield is one-time use, effect removed on hit in onHitObstacle
+            this.createShieldAnimation();
+            console.log(`🛡️ Player shield deployed successfully! Shield active: ${this.shieldActive}`);
+            // Shield is one-time use, effect removed on hit in onHitObstacle or when attacked
         } else if (deployedType === 'lightning') {
+            this.resetPowerupEffects(); // Clear any previous active effects first
+            this.removeGlow();
+            
             // Lightning power-up: Target a random opponent
             this.activePowerup = null; // Lightning is instant use, not persistent
             this.deployLightningStrike();
         } else if (deployedType === 'trap') {
+            this.resetPowerupEffects(); // Clear any previous active effects first
+            this.removeGlow();
+            
             // Trap power-up: Place a droppable trap at player's current position
             this.activePowerup = null; // Trap is instant deployment, not persistent
             this.deployTrap();
         } else if (deployedType === 'shuriken') {
+            this.resetPowerupEffects(); // Clear any previous active effects first
+            this.removeGlow();
+            
             // Shuriken power-up: Throw a shuriken forward
             this.activePowerup = null; // Shuriken is instant deployment, not persistent
             this.deployShuriken();
@@ -388,6 +412,12 @@ class Player {
     }
 
     applyLightningEffect(target) {
+        // Check if target has shield protection
+        if (target.checkShieldProtection && target.checkShieldProtection('lightning')) {
+            console.log(`⚡ Lightning strike blocked by ${target.name || 'Target'}'s shield!`);
+            return; // Shield blocked the attack
+        }
+        
         // Apply stunning effect - stop the target briefly
         const originalVelocityX = target.sprite.body.velocity.x;
         
@@ -493,6 +523,7 @@ class Player {
         this.activePowerup = null;
         this.shieldActive = false;
         this.currentSpeed = this.normalSpeed;
+        this.removeShieldAnimation();
         // Glow is typically removed when effects are reset, or when new one applied
     }
 
@@ -517,6 +548,68 @@ class Player {
         }
     }
 
+    createShieldAnimation() {
+        // Remove any existing shield animation
+        this.removeShieldAnimation();
+        
+        // Create a circular shield animation around the player
+        this.shieldAnimationSprite = this.scene.add.graphics();
+        this.shieldAnimationSprite.setDepth(this.sprite.depth + 2); // Make sure it's well above player and glow
+        
+        // Initial shield parameters
+        const shieldRadius = 45;
+        const shieldThickness = 3;
+        const shieldColor = GameConfig.SHIELD_GLOW_COLOR;
+        const shieldAlpha = 0.7;
+        
+        // Draw the initial shield circle
+        this.updateShieldGraphics(shieldRadius, shieldThickness, shieldColor, shieldAlpha);
+        this.shieldAnimationSprite.setPosition(this.sprite.x, this.sprite.y);
+        
+        // Create pulsing animation
+        this.scene.tweens.add({
+            targets: this.shieldAnimationSprite,
+            scaleX: { from: 1, to: 1.1 },
+            scaleY: { from: 1, to: 1.1 },
+            alpha: { from: 0.7, to: 0.9 },
+            duration: 800,
+            ease: 'Sine.easeInOut',
+            yoyo: true,
+            repeat: -1 // Infinite repeat
+        });
+        
+        console.log(`🛡️ Shield animation activated for Player at position (${this.sprite.x}, ${this.sprite.y}) with depth ${this.shieldAnimationSprite.depth}`);
+    }
+    
+    updateShieldGraphics(radius, thickness, color, alpha) {
+        if (!this.shieldAnimationSprite) return;
+        
+        this.shieldAnimationSprite.clear();
+        this.shieldAnimationSprite.lineStyle(thickness, color, alpha);
+        this.shieldAnimationSprite.strokeCircle(0, 0, radius);
+        
+        // Add some sparkle effects around the shield
+        for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * Math.PI * 2;
+            const sparkleX = Math.cos(angle) * (radius + 5);
+            const sparkleY = Math.sin(angle) * (radius + 5);
+            this.shieldAnimationSprite.fillStyle(color, alpha * 0.8);
+            this.shieldAnimationSprite.fillCircle(sparkleX, sparkleY, 2);
+        }
+        
+        console.log(`🛡️ Shield graphics updated: radius=${radius}, color=${color.toString(16)}, alpha=${alpha}`);
+    }
+    
+    removeShieldAnimation() {
+        if (this.shieldAnimationSprite) {
+            // Stop any active tweens on the shield animation
+            this.scene.tweens.killTweensOf(this.shieldAnimationSprite);
+            this.shieldAnimationSprite.destroy();
+            this.shieldAnimationSprite = null;
+            console.log(`🛡️ Shield animation removed for Player`);
+        }
+    }
+
     // Call this method when the scene is shutting down or player is permanently removed
     destroy() {
         if (this.sprite) {
@@ -534,6 +627,10 @@ class Player {
         if (this.lightningStrikeSprite) {
             this.lightningStrikeSprite.destroy();
             this.lightningStrikeSprite = null;
+        }
+        if (this.shieldAnimationSprite) {
+            this.shieldAnimationSprite.destroy();
+            this.shieldAnimationSprite = null;
         }
         if (this.powerupTimer) {
             this.powerupTimer.remove();

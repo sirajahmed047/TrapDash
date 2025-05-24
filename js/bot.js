@@ -36,6 +36,7 @@ class Bot {
         this.currentSpeed = this.normalSpeed;
         this.glowEffectGraphic = null;
         this.lightningStrikeSprite = null; // For tracking lightning animation
+        this.shieldAnimationSprite = null; // For tracking shield animation
         
         // DEBUG: Log speed modifications
         console.log(`🏃 ${this.botId} speeds - Normal: ${this.normalSpeed.toFixed(1)}, Boosted: ${this.boostedSpeed.toFixed(1)} (multiplier: ${this.personalityTraits.speedMultiplier})`);
@@ -147,6 +148,15 @@ class Bot {
         // Update lightning strike animation position if active
         if (this.lightningStrikeSprite && this.lightningStrikeSprite.active) {
             this.lightningStrikeSprite.setPosition(this.sprite.x, this.sprite.y - 64);
+        }
+
+        // Update shield animation position if active
+        if (this.shieldAnimationSprite && this.shieldAnimationSprite.active) {
+            this.shieldAnimationSprite.setPosition(this.sprite.x, this.sprite.y);
+        } else if (this.shieldActive && !this.shieldAnimationSprite) {
+            // Shield is active but animation is missing - recreate it
+            console.log(`⚠️ Shield active but animation missing for ${this.name || `Bot ${this.botId}`} - recreating`);
+            this.createShieldAnimation();
         }
     }
 
@@ -325,12 +335,8 @@ class Bot {
     }
 
     onHitObstacle(_obstacle) {
-        if (this.shieldActive) {
-            this.shieldActive = false;
-            this.activePowerup = null; // Shield consumed
-            this.removeGlow();
-            return true; // Indicate shield was used
-        }
+        // Shield does NOT protect against environmental obstacles like walls
+        // Shield only protects against offensive power-ups (lightning, shuriken, bomb)
         
         // Attempt to counteract micro-bounce before checking onFloor for the reactive jump
         if (this.sprite.body.blocked.down && Math.abs(this.sprite.body.velocity.y) < 5) {
@@ -353,7 +359,7 @@ class Bot {
                 this.scene.shakeCamera(GameConfig.BOT_OBSTACLE_SHAKE_INTENSITY, GameConfig.BOT_OBSTACLE_SHAKE_DURATION);
             }
         }
-        return false; // Indicate shield was not used
+        return false; // Shield is not consumed by environmental obstacles
     }
 
     onFall() {
@@ -400,12 +406,11 @@ class Bot {
     }
 
     collectPowerup(powerupType) {
-        this.resetPowerupEffects();
-        this.removeGlow();
-        
-        this.activePowerup = powerupType;
-
         if (powerupType === 'speed') {
+            this.resetPowerupEffects();
+            this.removeGlow();
+            
+            this.activePowerup = powerupType;
             this.currentSpeed = this.boostedSpeed; // Already personality-modified
             this.applyGlow(GameConfig.SPEED_GLOW_COLOR);
 
@@ -418,17 +423,41 @@ class Bot {
                 }
             }, [], this.scene);
         } else if (powerupType === 'shield') {
+            // Special handling for shield - don't reset shield effects first
+            if (this.powerupTimer) {
+                this.powerupTimer.remove(false);
+                this.powerupTimer = null;
+            }
+            // Only reset non-shield powerups
+            if (this.activePowerup && this.activePowerup !== 'shield') {
+                this.activePowerup = null;
+                this.currentSpeed = this.normalSpeed; // Already personality-modified
+                this.removeGlow(); // Remove previous glow only
+            }
+            
+            this.activePowerup = powerupType;
             this.shieldActive = true;
             this.applyGlow(GameConfig.SHIELD_GLOW_COLOR);
+            this.createShieldAnimation();
+            console.log(`🛡️ ${this.name || `Bot ${this.botId}`} shield deployed successfully! Shield active: ${this.shieldActive}`);
         } else if (powerupType === 'lightning') {
+            this.resetPowerupEffects();
+            this.removeGlow();
+            
             // Lightning power-up: Target a random opponent (instant use)
             this.activePowerup = null; // Lightning is instant use, not persistent
             this.deployLightningStrike();
         } else if (powerupType === 'trap') {
+            this.resetPowerupEffects();
+            this.removeGlow();
+            
             // Trap power-up: Place a droppable trap at bot's current position
             this.activePowerup = null; // Trap is instant deployment, not persistent
             this.deployTrap();
         } else if (powerupType === 'shuriken') {
+            this.resetPowerupEffects();
+            this.removeGlow();
+            
             // Shuriken power-up: Throw a shuriken forward
             this.activePowerup = null; // Shuriken is instant deployment, not persistent
             this.deployShuriken();
@@ -502,6 +531,12 @@ class Bot {
     }
 
     applyLightningEffect(target) {
+        // Check if target has shield protection
+        if (target.checkShieldProtection && target.checkShieldProtection('lightning')) {
+            console.log(`⚡ Lightning strike blocked by ${target.name || 'Target'}'s shield!`);
+            return; // Shield blocked the attack
+        }
+        
         // Apply stunning effect - stop the target briefly
         const originalVelocityX = target.sprite.body.velocity.x;
         
@@ -607,6 +642,7 @@ class Bot {
         this.activePowerup = null;
         this.shieldActive = false;
         this.currentSpeed = this.normalSpeed; // Already personality-modified
+        this.removeShieldAnimation();
     }
 
     applyGlow(color) {
@@ -660,9 +696,94 @@ class Bot {
             this.lightningStrikeSprite.destroy();
             this.lightningStrikeSprite = null;
         }
+        if (this.shieldAnimationSprite) {
+            this.shieldAnimationSprite.destroy();
+            this.shieldAnimationSprite = null;
+        }
         if (this.powerupTimer) {
             this.powerupTimer.remove();
             this.powerupTimer = null;
+        }
+    }
+
+    // Check if shield protects against attacks (lightning, shuriken, bomb)
+    checkShieldProtection(attackType) {
+        if (this.shieldActive) {
+            console.log(`🛡️ ${this.name || `Bot ${this.botId}`}'s shield protected against ${attackType} attack!`);
+            this.deactivateShield();
+            return true; // Shield blocked the attack
+        }
+        return false; // No shield protection
+    }
+
+    // Deactivate shield and remove visual effects
+    deactivateShield() {
+        this.shieldActive = false;
+        this.activePowerup = null; // Shield consumed
+        this.removeShieldAnimation();
+        this.removeGlow();
+        console.log(`🛡️ ${this.name || `Bot ${this.botId}`}'s shield has been consumed!`);
+    }
+
+    createShieldAnimation() {
+        // Remove any existing shield animation
+        this.removeShieldAnimation();
+        
+        // Create a circular shield animation around the bot
+        this.shieldAnimationSprite = this.scene.add.graphics();
+        this.shieldAnimationSprite.setDepth(this.sprite.depth + 2); // Make sure it's well above bot and glow
+        
+        // Initial shield parameters
+        const shieldRadius = 45;
+        const shieldThickness = 3;
+        const shieldColor = GameConfig.SHIELD_GLOW_COLOR;
+        const shieldAlpha = 0.7;
+        
+        // Draw the initial shield circle
+        this.updateShieldGraphics(shieldRadius, shieldThickness, shieldColor, shieldAlpha);
+        this.shieldAnimationSprite.setPosition(this.sprite.x, this.sprite.y);
+        
+        // Create pulsing animation
+        this.scene.tweens.add({
+            targets: this.shieldAnimationSprite,
+            scaleX: { from: 1, to: 1.1 },
+            scaleY: { from: 1, to: 1.1 },
+            alpha: { from: 0.7, to: 0.9 },
+            duration: 800,
+            ease: 'Sine.easeInOut',
+            yoyo: true,
+            repeat: -1 // Infinite repeat
+        });
+        
+        console.log(`🛡️ Shield animation activated for ${this.name || `Bot ${this.botId}`} at position (${this.sprite.x}, ${this.sprite.y}) with depth ${this.shieldAnimationSprite.depth}`);
+    }
+    
+    updateShieldGraphics(radius, thickness, color, alpha) {
+        if (!this.shieldAnimationSprite) return;
+        
+        this.shieldAnimationSprite.clear();
+        this.shieldAnimationSprite.lineStyle(thickness, color, alpha);
+        this.shieldAnimationSprite.strokeCircle(0, 0, radius);
+        
+        // Add some sparkle effects around the shield
+        for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * Math.PI * 2;
+            const sparkleX = Math.cos(angle) * (radius + 5);
+            const sparkleY = Math.sin(angle) * (radius + 5);
+            this.shieldAnimationSprite.fillStyle(color, alpha * 0.8);
+            this.shieldAnimationSprite.fillCircle(sparkleX, sparkleY, 2);
+        }
+        
+        console.log(`🛡️ Shield graphics updated for ${this.name || `Bot ${this.botId}`}: radius=${radius}, color=${color.toString(16)}, alpha=${alpha}`);
+    }
+    
+    removeShieldAnimation() {
+        if (this.shieldAnimationSprite) {
+            // Stop any active tweens on the shield animation
+            this.scene.tweens.killTweensOf(this.shieldAnimationSprite);
+            this.shieldAnimationSprite.destroy();
+            this.shieldAnimationSprite = null;
+            console.log(`🛡️ Shield animation removed for ${this.name || `Bot ${this.botId}`}`);
         }
     }
 }
