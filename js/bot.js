@@ -616,6 +616,7 @@ class Bot {
         const glowWidth = this.sprite.displayWidth + 15;
         const glowHeight = this.sprite.displayHeight + 15;
         this.glowEffectGraphic = this.scene.add.graphics();
+        this.glowEffectGraphic.lineStyle(0); // Remove any stroke/outline
         this.glowEffectGraphic.fillStyle(color, GameConfig.GLOW_ALPHA);
         this.glowEffectGraphic.fillRoundedRect(-glowWidth / 2, -glowHeight / 2, glowWidth, glowHeight, GameConfig.GLOW_RADIUS);
         this.glowEffectGraphic.setDepth(this.sprite.depth - 1);

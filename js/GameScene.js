@@ -74,11 +74,6 @@ class GameScene extends Phaser.Scene {
         this.physics.world.gravity.y = TEMP_DEFAULT_GRAVITY;
         this.cameras.main.setBackgroundColor(GameConfig.SKY_COLOR); // Sky color is fine from GameConfig
 
-        // Enable physics debug drawing
-        this.physics.world.createDebugGraphic();
-        // Make sure debug is drawn for dynamic bodies too
-        this.physics.world.drawDebug = true;
-
         this.groundTopY = this.configHeight - TEMP_GROUND_Y_OFFSET;
         this.fallDeathY = this.groundTopY + TEMP_GROUND_SEGMENT_HEIGHT + GameConfig.FALL_DEATH_Y_BUFFER;
 
@@ -222,6 +217,7 @@ class GameScene extends Phaser.Scene {
         // TRACK_WIDTH is already calculated using GameConfig.TRACK_WIDTH_MULTIPLIER
         const finishLineX = (this.configWidth * GameConfig.TRACK_WIDTH_MULTIPLIER) * GameConfig.FINISH_LINE_X_MULTIPLIER;
         this.finishLine = this.add.rectangle(finishLineX, finishLineHeight / 2, 10, finishLineHeight, 0xffff00);
+        this.finishLine.setStrokeStyle(0); // Remove outline
         this.physics.add.existing(this.finishLine, true); // true for static body
 
         this.physics.add.overlap(this.player.sprite, this.finishLine, () => this.handleCharacterFinish(this.player), null, this);
@@ -535,35 +531,118 @@ class GameScene extends Phaser.Scene {
         if (character.isBlasted) return; // Already blasted
         
         const characterName = character.name || (character.botId ? `Bot ${character.botId}` : 'Player');
-        console.log(`💥 ${characterName} has been blasted off! Will revive in 2 seconds.`);
+        console.log(`💥 ${characterName} has been blasted off! Will respawn in 2 seconds.`);
         
         // Mark as blasted
         character.isBlasted = true;
         
-        // Stop character movement
+        // Stop character movement completely
         character.sprite.body.setVelocity(0, 0);
         character.sprite.body.setAcceleration(0, 0);
+        character.sprite.body.setEnable(false); // Disable physics body so they can't move
         
-        // Apply blast knockback effect
-        const blastForceX = Phaser.Math.Between(-200, 200);
-        const blastForceY = -300; // Upward force
-        character.sprite.body.setVelocity(blastForceX, blastForceY);
-        
-        // Add red glow to show blasted state
-        character.applyGlow(0xff0000); // Red glow
-        
-        // Hide character temporarily (fade out)
-        this.tweens.add({
-            targets: character.sprite,
-            alpha: 0.3,
-            duration: 200,
-            ease: 'Power2'
-        });
+        // Try to implement split-in-half animation effect for bomb blast
+        try {
+            this.createBlastSplitDeathEffect(character);
+        } catch (error) {
+            console.log('Split animation not available, using simple disappear effect');
+            // Fallback: Just make character completely invisible
+            character.sprite.setVisible(false);
+            if (character.nameTag) character.nameTag.setVisible(false);
+        }
         
         // Revive after 2 seconds
         this.time.delayedCall(2000, () => {
-            this.reviveCharacter(character);
+            this.respawnCharacterFromGround(character);
         });
+    }
+
+    createBlastSplitDeathEffect(character) {
+        // Create two halves of the character sprite for blast split effect
+        const sprite = character.sprite;
+        const spriteTexture = sprite.texture.key;
+        
+        // Get sprite dimensions
+        const width = sprite.width;
+        const height = sprite.height;
+        
+        // Create left half with more violent blast effect
+        const leftHalf = this.add.image(sprite.x - width/4, sprite.y, spriteTexture);
+        leftHalf.setOrigin(0.5, 0.5);
+        leftHalf.setScale(sprite.scaleX, sprite.scaleY);
+        leftHalf.setCrop(0, 0, width/2, height); // Show left half only
+        leftHalf.setDepth(sprite.depth);
+        
+        // Create right half with more violent blast effect
+        const rightHalf = this.add.image(sprite.x + width/4, sprite.y, spriteTexture);
+        rightHalf.setOrigin(0.5, 0.5);
+        rightHalf.setScale(sprite.scaleX, sprite.scaleY);
+        rightHalf.setCrop(width/2, 0, width/2, height); // Show right half only
+        rightHalf.setDepth(sprite.depth);
+        
+        // Hide original sprite
+        sprite.setVisible(false);
+        if (character.nameTag) character.nameTag.setVisible(false);
+        
+        // Apply blast knockback effect to halves - more violent than shuriken
+        const blastForceX = Phaser.Math.Between(-300, 300);
+        const blastForceY = -400; // Stronger upward force for bomb
+        
+        // Animate left half with more violent motion
+        this.tweens.add({
+            targets: leftHalf,
+            x: leftHalf.x - 80, // Further apart than shuriken
+            y: leftHalf.y + 150,
+            rotation: -1.0, // More rotation for violent effect
+            alpha: 0,
+            scaleX: { from: 1, to: 0.3 }, // Shrink as it flies away
+            scaleY: { from: 1, to: 0.3 },
+            duration: 1200, // Slightly longer for bomb blast
+            ease: 'Quad.easeIn',
+            onComplete: () => {
+                leftHalf.destroy();
+            }
+        });
+        
+        // Animate right half with more violent motion
+        this.tweens.add({
+            targets: rightHalf,
+            x: rightHalf.x + 80, // Further apart than shuriken
+            y: rightHalf.y + 150,
+            rotation: 1.0, // More rotation for violent effect
+            alpha: 0,
+            scaleX: { from: 1, to: 0.3 }, // Shrink as it flies away
+            scaleY: { from: 1, to: 0.3 },
+            duration: 1200, // Slightly longer for bomb blast
+            ease: 'Quad.easeIn',
+            onComplete: () => {
+                rightHalf.destroy();
+            }
+        });
+        
+        // Add dramatic visual effects for bomb blast
+        this.cameras.main.flash(200, 255, 128, 0); // Orange/yellow flash for explosion
+        
+        // Create explosion particle effect (simple circle particles)
+        for (let i = 0; i < 8; i++) {
+            const particle = this.add.circle(sprite.x, sprite.y, Phaser.Math.Between(3, 8), 0xff4400);
+            particle.setDepth(sprite.depth + 1);
+            
+            const angle = (i / 8) * Math.PI * 2;
+            const force = Phaser.Math.Between(100, 200);
+            
+            this.tweens.add({
+                targets: particle,
+                x: sprite.x + Math.cos(angle) * force,
+                y: sprite.y + Math.sin(angle) * force,
+                alpha: 0,
+                duration: 800,
+                ease: 'Quad.easeOut',
+                onComplete: () => {
+                    particle.destroy();
+                }
+            });
+        }
     }
 
     reviveCharacter(character) {
@@ -574,8 +653,15 @@ class GameScene extends Phaser.Scene {
         
         // Remove blasted state
         character.isBlasted = false;
+        character.isFalling = false;
+        
+        // Re-enable physics body (in case it was disabled)
+        character.sprite.body.setEnable(true);
         
         // Restore visibility
+        character.sprite.setVisible(true);
+        if (character.nameTag) character.nameTag.setVisible(true);
+        
         this.tweens.add({
             targets: character.sprite,
             alpha: 1,

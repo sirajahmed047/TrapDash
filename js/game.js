@@ -9,7 +9,7 @@ const config = {
         default: 'arcade',
         arcade: {
             gravity: { y: 0 }, // Global gravity default, scenes can override (e.g. GameScene sets its own)
-            debug: true        // Set to false for production
+            debug: false        // Set to false for production
         }
     },
     scene: [BootScene, MainMenuScene, GameScene, UIScene, GameOverScene] // Scene classes array

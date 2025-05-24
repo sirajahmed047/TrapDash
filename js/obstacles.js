@@ -42,6 +42,7 @@ function createGroundAndTrack(scene, trackWidth, groundTopY, groundSegmentHeight
             const segmentWidth = seg.end - seg.start;
             if (segmentWidth > 0) {
                 const groundRect = scene.add.rectangle(seg.start + segmentWidth / 2, groundSegmentCenterY, segmentWidth, groundSegmentHeight, groundColor);
+                groundRect.setStrokeStyle(0); // Remove outline
                 scene.physics.add.existing(groundRect, true); // Add static physics body
                 groundGroup.add(groundRect); // Add to static group
             }
@@ -159,6 +160,7 @@ function createMovingObstacles(scene, groundTopY) {
     movingObstacleData.forEach((data, index) => {
         // Create the platform as a rectangle
         const platform = scene.add.rectangle(data.x, data.y, data.width, data.height, data.color);
+        platform.setStrokeStyle(0); // Remove outline
         
         // Add physics body
         scene.physics.add.existing(platform);
@@ -523,6 +525,7 @@ function createChunkedTrack(scene, trackWidth, groundTopY, groundSegmentHeight) 
                     groundSegmentHeight, 
                     groundColor
                 );
+                groundRect.setStrokeStyle(0); // Remove outline
                 scene.physics.add.existing(groundRect, true);
                 groundGroup.add(groundRect);
             }
@@ -560,6 +563,7 @@ function placeObstacleChunk(scene, pattern, offsetX, groundTopY, wallsGroup, mov
                 data.height, 
                 data.color
             );
+            platform.setStrokeStyle(0); // Remove outline
             
             scene.physics.add.existing(platform);
             platform.body.setImmovable(true);
