@@ -18,21 +18,20 @@ class UIScene extends Phaser.Scene {
             padding: { left: 5, right: 5, top: 2, bottom: 2 }
         }).setScrollFactor(0);
 
-        // Listen for events from GameScene to update UI
-        // For example, the GameScene could emit an event 'updatePosition'
-        const gameScene = this.scene.get('GameScene');
-
-        // It's often better to use the Phaser event emitter or registry for cross-scene communication.
-        // For now, we can periodically check or have GameScene update a value in the registry.
-        // Example of GameScene telling UIScene to update:
-        // gameScene.events.on('updatePositionDisplay', (text) => {
-        //     this.positionText.setText(text);
-        // }, this);
+        // Add a small delay to ensure GameScene is fully initialized
+        this.time.delayedCall(500, () => {
+            this.setupGameSceneConnection();
+        });
 
         // Create initial powerup button
         this.createPowerupButton();
+    }
 
+    setupGameSceneConnection() {
+        const gameScene = this.scene.get('GameScene');
+        
         if (gameScene) {
+            // Set up powerup events
             gameScene.events.on('playerCollectedPowerup', (powerupType) => {
                 this.updatePowerupButton(`Use ${powerupType.charAt(0).toUpperCase() + powerupType.slice(1)}!`, true);
             }, this);
@@ -40,11 +39,20 @@ class UIScene extends Phaser.Scene {
             gameScene.events.on('playerUsedPowerup', () => {
                 this.updatePowerupButton('Power-up: None', false);
             }, this);
+            
+            console.log('✅ UIScene connected to GameScene for position tracking');
+        } else {
+            console.warn('⚠️ GameScene not found, retrying connection in 500ms');
+            // Retry connection if GameScene isn't ready yet
+            this.time.delayedCall(500, () => {
+                this.setupGameSceneConnection();
+            });
         }
 
         // Ensure UIScene is cleaned up properly
-        this.events.on(Phaser.Events.SHUTDOWN, () => {
+        this.events.once(Phaser.Events.SHUTDOWN, () => {
             // Clean up event listeners and UI elements
+            const gameScene = this.scene.get('GameScene');
             if (gameScene) {
                 gameScene.events.off('playerCollectedPowerup', undefined, this);
                 gameScene.events.off('playerUsedPowerup', undefined, this);
@@ -144,20 +152,56 @@ class UIScene extends Phaser.Scene {
     }
 
     update() {
-        // Update UI elements if needed (e.g., animations, timers)
-        // For dynamic text like position, GameScene will likely drive updates either via events or registry.
-        // As a simple polling example (less ideal than events for frequent updates):
+        // Get GameScene reference with safety check
         const gameScene = this.scene.get('GameScene');
-        if (gameScene && gameScene.player && gameScene.bot && gameScene.player.sprite && gameScene.bot.sprite && gameScene.gameStarted && !gameScene.gameOver) {
-            if (gameScene.player.sprite.x > gameScene.bot.sprite.x) {
-                this.positionText.setText('Position: 1st');
-            } else if (gameScene.bot.sprite.x > gameScene.player.sprite.x) {
-                this.positionText.setText('Position: 2nd');
-            } else {
-                this.positionText.setText('Position: Tied'); 
-            }
-        } else if (gameScene && !gameScene.gameStarted && this.positionText) {
+        if (!gameScene) return;
+        
+        // Only update position during active gameplay
+        if (gameScene.gameStarted && !gameScene.gameOver && 
+            gameScene.player && gameScene.player.sprite && 
+            gameScene.bots && gameScene.bots.length > 0) {
+            
+            // Calculate player's position by comparing with all active bots
+            let playersAhead = 0;
+            let validBots = 0;
+            
+            gameScene.bots.forEach(bot => {
+                if (bot && bot.sprite && bot.sprite.active && !bot.isFalling && !bot.isBlasted) {
+                    validBots++;
+                    if (bot.sprite.x > gameScene.player.sprite.x) {
+                        playersAhead++;
+                    }
+                }
+            });
+            
+            // Player's position is the number of characters ahead + 1
+            const playerPosition = playersAhead + 1;
+            const totalRacers = validBots + 1; // Valid bots + player
+            
+            // Update position text with ordinal suffix
+            const ordinalSuffix = this.getOrdinalSuffix(playerPosition);
+            this.positionText.setText(`Position: ${playerPosition}${ordinalSuffix} / ${totalRacers}`);
+            
+        } else {
+            // Show "Position: -" when game is not active
             this.positionText.setText('Position: -');
+        }
+    }
+    
+    // Helper method to get ordinal suffix (1st, 2nd, 3rd, etc.)
+    getOrdinalSuffix(number) {
+        const lastDigit = number % 10;
+        const lastTwoDigits = number % 100;
+        
+        if (lastTwoDigits >= 11 && lastTwoDigits <= 13) {
+            return 'th';
+        }
+        
+        switch (lastDigit) {
+            case 1: return 'st';
+            case 2: return 'nd';
+            case 3: return 'rd';
+            default: return 'th';
         }
     }
 } 
