@@ -27,6 +27,11 @@ class Player {
         this.currentSpeed = normalSpeed; // Player's current operational speed
         this.glowEffectGraphic = null;
         this.collectedPowerupType = null;
+        this.lightningStrikeSprite = null; // For tracking lightning animation
+        
+        // Moving platform tracking
+        this.standingOnPlatform = null;
+        this.platformContactTime = 0;
 
         // Link the sprite back to this Player instance for easy access in colliders
         this.sprite.playerInstance = this;
@@ -73,6 +78,15 @@ class Player {
             return;
         }
 
+        // Check if stunned (by lightning)
+        if (this.isStunned) {
+            // Stunned player doesn't move
+            if (this.sprite.body) {
+                this.sprite.body.setVelocityX(0);
+            }
+            return;
+        }
+
         // Continuously apply horizontal speed
         if (this.sprite.body) { // Ensure body exists
             this.sprite.body.setVelocityX(this.currentSpeed);
@@ -96,9 +110,50 @@ class Player {
                 this.sprite.play('player_running', true);
             }
         }
+        
+        // Clear platform reference if player is falling or jumping significantly
+        if (this.standingOnPlatform && this.sprite.body.velocity.y < -50) {
+            console.log(`🚀 Player left platform - velocity.y: ${this.sprite.body.velocity.y.toFixed(1)}`);
+            this.standingOnPlatform = null;
+        }
 
-        // Player jump logic
-        if (cursors.space.isDown && this.sprite.body.onFloor()) {
+        // Player jump logic - Enhanced for moving platforms
+        // Check if player can jump (on floor OR on a moving platform)
+        let canJump = this.sprite.body.onFloor() || 
+                     (this.sprite.body.blocked.down && Math.abs(this.sprite.body.velocity.y) < 10);
+        
+        // Check if player is standing on a tracked moving platform
+        if (!canJump && this.standingOnPlatform) {
+            const timeSinceContact = this.scene.time.now - this.platformContactTime;
+            
+            // Allow jumping if we've been in contact with the platform recently (within 100ms)
+            if (timeSinceContact < 100) {
+                const playerBottom = this.sprite.body.bottom;
+                const playerCenterX = this.sprite.body.center.x;
+                const platformTop = this.standingOnPlatform.body.top;
+                const platformLeft = this.standingOnPlatform.body.left;
+                const platformRight = this.standingOnPlatform.body.right;
+                
+                // Verify player is still roughly on the platform
+                const isAbovePlatform = playerBottom >= platformTop - 8 && playerBottom <= platformTop + 20;
+                const isWithinPlatformWidth = playerCenterX >= platformLeft - 15 && playerCenterX <= platformRight + 15;
+                
+                if (isAbovePlatform && isWithinPlatformWidth) {
+                    canJump = true;
+                    console.log(`🏃 Player can jump from tracked platform at (${this.standingOnPlatform.x.toFixed(1)}, ${this.standingOnPlatform.y.toFixed(1)}) - contact time: ${timeSinceContact}ms`);
+                }
+            } else {
+                // Clear old platform reference if too much time has passed
+                this.standingOnPlatform = null;
+            }
+        }
+        
+        // Debug: Log jump state occasionally when space is pressed
+        if (cursors.space.isDown && this.scene.game.loop.frame % 10 === 0) {
+            console.log(`🎮 Player jump attempt - onFloor: ${this.sprite.body.onFloor()}, blocked.down: ${this.sprite.body.blocked.down}, velocity.y: ${this.sprite.body.velocity.y.toFixed(1)}, canJump: ${canJump}, onPlatform: ${this.standingOnPlatform ? 'YES' : 'NO'}`);
+        }
+        
+        if (cursors.space.isDown && canJump) {
             this.sprite.body.setVelocityY(this.jumpVelocity);
             
             // Play jump animation
@@ -118,6 +173,11 @@ class Player {
         // Update name tag position
         if (this.nameTag) {
             this.nameTag.setPosition(this.sprite.x, this.sprite.y - (this.sprite.displayHeight / 2) - 5).setDepth(this.sprite.depth + 1);
+        }
+
+        // Update lightning strike animation position if active
+        if (this.lightningStrikeSprite && this.lightningStrikeSprite.active) {
+            this.lightningStrikeSprite.setPosition(this.sprite.x, this.sprite.y - 64);
         }
     }
 
@@ -248,11 +308,181 @@ class Player {
             this.shieldActive = true;
             this.applyGlow(GameConfig.SHIELD_GLOW_COLOR);
             // Shield is one-time use, effect removed on hit in onHitObstacle
+        } else if (deployedType === 'lightning') {
+            // Lightning power-up: Target a random opponent
+            this.activePowerup = null; // Lightning is instant use, not persistent
+            this.deployLightningStrike();
+        } else if (deployedType === 'trap') {
+            // Trap power-up: Place a droppable trap at player's current position
+            this.activePowerup = null; // Trap is instant deployment, not persistent
+            this.deployTrap();
+        } else if (deployedType === 'shuriken') {
+            // Shuriken power-up: Throw a shuriken forward
+            this.activePowerup = null; // Shuriken is instant deployment, not persistent
+            this.deployShuriken();
         }
         
         // Notify UI that power-up has been used
         this.scene.events.emit('playerUsedPowerup');
         return true;
+    }
+
+    deployLightningStrike() {
+        // Get all valid targets (excluding self)
+        const targets = [];
+        
+        if (this.scene.bots) {
+            this.scene.bots.forEach(bot => {
+                if (bot && bot.sprite && bot.sprite.active && !bot.isFalling) {
+                    targets.push(bot);
+                }
+            });
+        }
+
+        if (targets.length === 0) {
+            console.log('⚡ No valid targets for lightning strike');
+            return;
+        }
+
+        // Select random target
+        const randomTarget = targets[Math.floor(Math.random() * targets.length)];
+        console.log(`⚡ Lightning targeting ${randomTarget.name || 'Bot'}`);
+
+        // Create lightning effect
+        this.createLightningEffect(randomTarget);
+
+        // Apply lightning effect to target
+        this.applyLightningEffect(randomTarget);
+    }
+
+    createLightningEffect(target) {
+        const targetX = target.sprite.x;
+        const targetY = target.sprite.y;
+        
+        // Create animated lightning strike sprite above the target
+        const lightningSprite = this.scene.add.sprite(targetX, targetY - 64, 'lightning_strike');
+        lightningSprite.setDepth(100); // High depth to appear above everything
+        lightningSprite.setOrigin(0.5, 1); // Bottom center origin so it appears above the character
+        
+        // Store reference on the target so it can follow them
+        target.lightningStrikeSprite = lightningSprite;
+        
+        // Play the lightning animation
+        lightningSprite.play('lightning_strike_anim');
+        
+        // Flash effect
+        this.scene.cameras.main.flash(100, 255, 255, 255);
+
+        // Remove lightning effect when animation completes
+        lightningSprite.on('animationcomplete', () => {
+            if (lightningSprite) {
+                lightningSprite.destroy();
+                target.lightningStrikeSprite = null;
+            }
+        });
+
+        // Add screen shake for dramatic effect
+        if (this.scene.shakeCamera) {
+            this.scene.shakeCamera(0.02, 200);
+        }
+    }
+
+    applyLightningEffect(target) {
+        // Apply stunning effect - stop the target briefly
+        const originalVelocityX = target.sprite.body.velocity.x;
+        
+        // Stun the target
+        target.sprite.body.setVelocityX(0);
+        target.isStunned = true;
+        
+        // Apply purple glow to show stunning effect
+        target.applyGlow(GameConfig.LIGHTNING_GLOW_COLOR);
+        
+        // Remove stun effect after 1.5 seconds
+        this.scene.time.delayedCall(1500, () => {
+            if (target.sprite && target.sprite.active) {
+                target.isStunned = false;
+                target.sprite.body.setVelocityX(originalVelocityX);
+                target.removeGlow();
+                console.log(`⚡ ${target.name || 'Bot'} recovered from lightning strike`);
+            }
+        });
+
+        console.log(`⚡ ${target.name || 'Bot'} struck by lightning! Stunned for 1.5 seconds`);
+    }
+
+    deployTrap() {
+        // Place trap at player's current position on the ground
+        const trapX = this.sprite.x;
+        const trapY = this.sprite.y + 20; // Place slightly below player (on ground)
+
+        console.log(`💣 ${this.name || 'Player'} deployed a trap at position ${trapX}, ${trapY}`);
+
+        // Create trap physics group if it doesn't exist
+        if (!this.scene.traps) {
+            this.scene.traps = this.scene.physics.add.staticGroup();
+        }
+
+        // Create trap sprite directly in the physics group
+        const trapSprite = this.scene.traps.create(trapX, trapY, 'droptrap');
+        trapSprite.setDepth(50); // Below characters but above ground
+        trapSprite.setOrigin(0.5, 1); // Bottom center origin
+        trapSprite.body.setSize(64, 64); // Set collision box
+        
+        // Safely play animation with error checking
+        if (this.scene.anims.exists('trap_idle')) {
+            trapSprite.play('trap_idle');
+        } else {
+            console.warn('trap_idle animation not found');
+        }
+
+        // Add trap data
+        trapSprite.setData('trapType', 'bomb');
+        trapSprite.setData('deployedBy', this.name || 'Player');
+        trapSprite.setData('isArmed', true);
+        trapSprite.setData('deploymentTime', this.scene.time.now); // Add deployment timestamp
+
+        // Start trap monitoring in the scene
+        this.scene.activateTrapsMonitoring();
+    }
+
+    deployShuriken() {
+        // Throw shuriken forward from player's position
+        const shurikenX = this.sprite.x + 50; // Start slightly ahead of player
+        const shurikenY = this.sprite.y - 10; // Center height
+        const shurikenSpeed = 400; // Fast forward movement
+
+        console.log(`🌟 ${this.name || 'Player'} deployed a shuriken at position ${shurikenX}, ${shurikenY}`);
+
+        // Create shuriken physics group if it doesn't exist
+        if (!this.scene.shurikens) {
+            this.scene.shurikens = this.scene.physics.add.group();
+        }
+
+        // Create shuriken sprite directly in the physics group
+        const shurikenSprite = this.scene.shurikens.create(shurikenX, shurikenY, 'shuriken');
+        shurikenSprite.setScale(0.3); // Scale down from 192x192 to reasonable size
+        shurikenSprite.setDepth(75); // Above ground but below UI
+        shurikenSprite.body.setSize(60, 60); // Set collision box smaller than sprite
+        shurikenSprite.body.setAllowGravity(false); // Shurikens fly straight
+        
+        // Set initial velocity forward
+        shurikenSprite.body.setVelocityX(shurikenSpeed);
+        
+        // Use rotation for spinning effect (since we have single frame, not animation)
+        shurikenSprite.setRotation(0); // Start at 0 rotation
+        
+        // Add rotation data for continuous spinning
+        shurikenSprite.setData('rotationSpeed', 0.3); // Radians per frame for spinning effect
+
+        // Add shuriken data
+        shurikenSprite.setData('deployedBy', this.name || 'Player');
+        shurikenSprite.setData('hasReflected', false); // Track if it has bounced off a wall
+        shurikenSprite.setData('hasHitCharacter', false); // Track if it has hit someone
+        shurikenSprite.setData('direction', 1); // 1 for right, -1 for left
+
+        // Start shuriken monitoring in the scene
+        this.scene.activateShurikenMonitoring();
     }
 
     resetPowerupEffects() {
@@ -299,6 +529,10 @@ class Player {
         if (this.glowEffectGraphic) {
             this.glowEffectGraphic.destroy();
             this.glowEffectGraphic = null;
+        }
+        if (this.lightningStrikeSprite) {
+            this.lightningStrikeSprite.destroy();
+            this.lightningStrikeSprite = null;
         }
         if (this.powerupTimer) {
             this.powerupTimer.remove();

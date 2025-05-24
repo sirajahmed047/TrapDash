@@ -11,6 +11,10 @@ class GameScene extends Phaser.Scene {
         this.isPlayerActuallyFinished = false;
         this.botsFinishedCount = 0;
 
+        // NEW: Podium tracking system
+        this.finishers = []; // Array to track finishing order for podium
+        this.finishersNeeded = 3; // Game ends when 3 characters finish
+
         // Countdown related
         this.countdownText = null;
         this.countdownTimer = null;
@@ -29,6 +33,18 @@ class GameScene extends Phaser.Scene {
         this.cursors = null;
         this.restartKey = null; // Will be handled by GameOverScene primarily
 
+        // Trap monitoring system
+        this.traps = null; // Physics group for active traps (now will be static group)
+        this.trapMonitoringActive = false;
+        this.trapCheckInterval = 100; // Check every 100ms for timer-based detonation
+        this.lastTrapCheck = 0;
+
+        // Shuriken monitoring system
+        this.shurikens = null; // Physics group for active shurikens
+        this.shurikenMonitoringActive = false;
+        this.shurikenCheckInterval = 16; // Check every frame (~60fps)
+        this.lastShurikenCheck = 0;
+
         this.fallDeathY = 0;
         this.groundTopY = 0;
 
@@ -42,6 +58,8 @@ class GameScene extends Phaser.Scene {
         // Using the animations loaded in BootScene
         this.load.image("powerupSpeedIconPH", "assets/images/powerup_speed_icon_placeholder.png");
         this.load.image("powerupShieldIconPH", "assets/images/powerup_shield_icon_placeholder.png");
+        this.load.image("powerupLightningIconPH", "assets/images/powerup_lightning_icon_placeholder.png");
+        this.load.image("mysteryBox", "assets/images/mysterybox.png");
         this.load.image("wall", "assets/images/obstacle_wall.png");
     }
 
@@ -64,12 +82,14 @@ class GameScene extends Phaser.Scene {
         this.groundTopY = this.configHeight - TEMP_GROUND_Y_OFFSET;
         this.fallDeathY = this.groundTopY + TEMP_GROUND_SEGMENT_HEIGHT + GameConfig.FALL_DEATH_Y_BUFFER;
 
-        // Ground Plane and Track Segments (using functions from obstacles.js)
-        const groundData = createGroundAndTrack(this, this.configWidth * GameConfig.TRACK_WIDTH_MULTIPLIER, this.groundTopY, TEMP_GROUND_SEGMENT_HEIGHT);
-        this.groundGroup = groundData.groundGroup;
-        this.trackSegments = groundData.trackSegments;
+        // Create varied track with obstacle patterns/chunks (replaces separate function calls)
+        const trackData = createVariedTrack(this, this.configWidth * GameConfig.TRACK_WIDTH_MULTIPLIER, this.groundTopY, TEMP_GROUND_SEGMENT_HEIGHT);
+        this.groundGroup = trackData.groundGroup;
+        this.trackSegments = trackData.trackSegments;
+        this.wallsGroup = trackData.wallsGroup;
+        this.movingObstaclesGroup = trackData.movingObstaclesGroup;
 
-        // Ground group created successfully
+        // Track created with varied obstacle patterns/chunks
 
         // Player Instance
         // Place player directly on the ground to prevent falling through
@@ -93,14 +113,11 @@ class GameScene extends Phaser.Scene {
             // Bot sprite created and configured with personality: ${personality}
         }
 
-        // Power-ups (using functions from powerups.js)
+        // Power-ups (using functions from powerups.js) - Create after platforms
         this.powerupsGroup = createPowerups(this, this.groundTopY);
-
-        // Walls Obstacles (using function from obstacles.js)
-        this.wallsGroup = createWalls(this, this.groundTopY);
-
-        // Moving Obstacles (using function from obstacles.js)
-        this.movingObstaclesGroup = createMovingObstacles(this, this.groundTopY);
+        
+        // Attach powerups to moving platforms
+        attachPowerupsToMovingPlatforms(this, this.powerupsGroup, this.movingObstaclesGroup);
 
         // --- Physics Colliders and Overlaps ---
         if (this.groundGroup && this.groundGroup.getChildren().length > 0) {
@@ -127,9 +144,24 @@ class GameScene extends Phaser.Scene {
         this.physics.add.collider(this.player.sprite, this.movingObstaclesGroup, (playerSprite, platform) => {
             // For moving platforms, we can either land on them or hit them
             // If player is above the platform, it's a landing, otherwise it's an obstacle hit
-            if (playerSprite.body.bottom <= platform.body.top + 10) {
-                // Player is landing on platform - allow standing
+            const playerBottom = playerSprite.body.bottom;
+            const platformTop = platform.body.top;
+            
+            if (playerBottom <= platformTop + 15) {
+                // Player is landing on or standing on platform - allow standing
+                // Ensure player doesn't sink into the platform
+                if (playerBottom > platformTop) {
+                    playerSprite.y = platformTop - (playerSprite.body.height / 2);
+                    playerSprite.body.updateFromGameObject();
+                }
+                
+                // Track platform contact for jump detection
+                const playerInstance = playerSprite.playerInstance;
+                playerInstance.standingOnPlatform = platform;
+                playerInstance.platformContactTime = this.time.now;
+                
                 // This collision will naturally stop the player from falling through
+                console.log(`🔗 Player standing on moving platform at (${platform.x.toFixed(1)}, ${platform.y.toFixed(1)})`);
             } else {
                 // Player hit the side of a moving platform
                 playerSprite.playerInstance.onHitObstacle(platform);
@@ -148,23 +180,40 @@ class GameScene extends Phaser.Scene {
             }, null, this);
         });
 
-        // Power-up Collection
-        this.physics.add.overlap(this.player.sprite, this.powerupsGroup, (playerSprite, powerupIcon) => {
-            if (!powerupIcon.active) return;
-            const type = powerupIcon.getData('type');
-            playerSprite.playerInstance.collectPowerup(type);
-            powerupIcon.disableBody(true, true);
-            // Assuming initiatePowerupRespawn is globally available
-            initiatePowerupRespawn(this, powerupIcon);
+        // Mystery Box Collection - boxes stay active and give powerups to all characters
+        this.physics.add.overlap(this.player.sprite, this.powerupsGroup, (playerSprite, mysteryBox) => {
+            if (!mysteryBox.active) return;
+            
+            // Add cooldown to prevent same character from spamming the same box
+            const currentTime = this.time.now;
+            const characterId = 'player';
+            const lastCollectTime = mysteryBox.getData(`lastCollect_${characterId}`) || 0;
+            
+            if (currentTime - lastCollectTime < 1000) return; // 1 second cooldown
+            
+            const randomPowerup = getRandomPowerup();
+            playerSprite.playerInstance.collectPowerup(randomPowerup);
+            mysteryBox.setData(`lastCollect_${characterId}`, currentTime);
+            
+            // Mystery box stays active for other characters to use
         }, null, this);
 
-        this.bots.forEach(bot => {
-            this.physics.add.overlap(bot.sprite, this.powerupsGroup, (botSprite, powerupIcon) => {
-                if (!powerupIcon.active) return;
-                const type = powerupIcon.getData('type');
-                botSprite.botInstance.collectPowerup(type);
-                powerupIcon.disableBody(true, true);
-                initiatePowerupRespawn(this, powerupIcon);
+        this.bots.forEach((bot, index) => {
+            this.physics.add.overlap(bot.sprite, this.powerupsGroup, (botSprite, mysteryBox) => {
+                if (!mysteryBox.active) return;
+                
+                // Add cooldown to prevent same bot from spamming the same box
+                const currentTime = this.time.now;
+                const characterId = `bot_${index}`;
+                const lastCollectTime = mysteryBox.getData(`lastCollect_${characterId}`) || 0;
+                
+                if (currentTime - lastCollectTime < 1000) return; // 1 second cooldown
+                
+                const randomPowerup = getRandomPowerup();
+                botSprite.botInstance.collectPowerup(randomPowerup);
+                mysteryBox.setData(`lastCollect_${characterId}`, currentTime);
+                
+                // Mystery box stays active for other characters to use
             }, null, this);
         });
 
@@ -298,72 +347,258 @@ class GameScene extends Phaser.Scene {
         });
     }
 
-    // Generic finish handler (moved into GameScene)
+    // Generic finish handler (moved into GameScene) - UPDATED FOR PODIUM SYSTEM
     handleCharacterFinish(characterInstance) {
-        if (this.gameOver) return; // Already over, or someone else finished in the same frame processing.
+        if (this.gameOver) return; // Already over
 
         const isPlayer = (characterInstance === this.player);
+        let characterName;
+        let hasAlreadyFinished = false;
 
         if (isPlayer) {
-            if (!this.isPlayerActuallyFinished) { // Check if player hasn't finished yet
+            characterName = "Player";
+            hasAlreadyFinished = this.isPlayerActuallyFinished;
+            if (!hasAlreadyFinished) {
                 this.isPlayerActuallyFinished = true;
                 characterInstance.onFinish(); // Call method on Player instance
             }
         } else { // It's a bot
-            // Check if this specific bot instance has already finished
-            if (!characterInstance.isFinished) {
-                 characterInstance.onFinish(); // Call method on Bot instance (sets internal isFinished flag)
-                 this.botsFinishedCount++;
+            characterName = characterInstance.botId; // e.g., "Bot 1", "Bot 2", etc.
+            hasAlreadyFinished = characterInstance.isFinished;
+            if (!hasAlreadyFinished) {
+                characterInstance.onFinish(); // Call method on Bot instance (sets internal isFinished flag)
+                this.botsFinishedCount++;
             }
         }
-        
-        let winnerDetermined = null;
 
-        // Check win condition only if not already game over
-        if (!this.gameOver) {
-            if (this.isPlayerActuallyFinished) {
-                winnerDetermined = 'Player';
-            } else if (this.botsFinishedCount > 0 && !this.isPlayerActuallyFinished) {
-                // If any bot has finished and the player hasn't, find out which bot was first among those finished.
-                let firstBotWinner = null;
-                for (const bot of this.bots) {
-                    if (bot.isFinished) { // isFinished is set in Bot's onFinish()
-                        if (!firstBotWinner) { // Take the first one we find that crossed
-                            firstBotWinner = bot;
-                            break; 
-                        }
-                        // Potentially add logic here if multiple bots cross nearly simultaneously and you want to check sprite.x
-                    }
-                }
-                if (firstBotWinner) {
-                    winnerDetermined = firstBotWinner.botId; // Use the botId (e.g., "Bot 1")
-                } else {
-                    winnerDetermined = 'Bot'; // Fallback, though should not happen if botsFinishedCount > 0
-                }
-            }
-            // Scenario where multiple bots finish, but player hasn't - firstBotWinner logic handles this.
-            // If player and a bot finish in very quick succession, the first one to trigger this will set gameOver.
-        }
-
-
-        if (winnerDetermined && !this.gameOver) { // Ensure gameOver is set only once
-            this.gameOver = true;
-            this.playerWon = winnerDetermined; // playerWon will be 'Player' or 'Bot'
-            // Game Over - transitioning to game over scene
-
-            if (isPlayer) { // If player is the one crossing and winning/triggering game over
-                this.cameras.main.stopFollow();
-            } else if (this.playerWon === 'Bot' && this.player && this.player.sprite) { 
-                // If Bot wins, ensure camera stops following player if it was.
-                 this.cameras.main.stopFollow();
-            }
+        // Add to finishers array if not already finished
+        if (!hasAlreadyFinished) {
+            const finishTime = this.time.now;
+            const finishPosition = this.finishers.length + 1;
             
-            // Transition to GameOverScene
-            this.scene.stop('UIScene'); // Stop the UI scene
-            this.scene.start('GameOverScene', { winner: this.playerWon });
+            this.finishers.push({
+                name: characterName,
+                character: characterInstance,
+                position: finishPosition,
+                time: finishTime,
+                isPlayer: isPlayer
+            });
+
+            console.log(`🏁 ${characterName} finished in position ${finishPosition}!`);
+            
+            // Show position feedback to player (temporary text)
+            const positionText = ['🥇 1st Place!', '🥈 2nd Place!', '🥉 3rd Place!'][finishPosition - 1] || `${finishPosition}th Place!`;
+            const finishFeedback = this.add.text(
+                this.cameras.main.scrollX + this.configWidth / 2, 
+                this.cameras.main.scrollY + 100, 
+                `${characterName}: ${positionText}`, 
+                { 
+                    fontFamily: 'Arial Black', 
+                    fontSize: '32px', 
+                    color: '#ffff00', 
+                    stroke: '#000000', 
+                    strokeThickness: 4,
+                    align: 'center' 
+                }
+            ).setOrigin(0.5).setScrollFactor(0);
+
+            // Remove feedback text after 3 seconds
+            this.time.delayedCall(3000, () => {
+                if (finishFeedback) {
+                    finishFeedback.destroy();
+                }
+            });
+        }
+
+        // Check if we have enough finishers to end the game
+        if (this.finishers.length >= this.finishersNeeded && !this.gameOver) {
+            this.gameOver = true;
+            
+            console.log("🏆 Race Complete! Top 3 finishers:");
+            this.finishers.forEach((finisher, index) => {
+                console.log(`   ${index + 1}. ${finisher.name}`);
+            });
+
+            // Stop camera following
+            this.cameras.main.stopFollow();
+            
+            // Stop UI scene and transition to podium scene
+            this.scene.stop('UIScene');
+            this.scene.start('GameOverScene', { 
+                finishers: this.finishers,
+                totalRacers: 1 + this.bots.length // Player + bots
+            });
         }
     }
 
+    // Trap monitoring system
+    activateTrapsMonitoring() {
+        if (!this.trapMonitoringActive) {
+            this.trapMonitoringActive = true;
+            console.log('💣 Trap monitoring system activated');
+        }
+    }
+
+    // Shuriken monitoring system
+    activateShurikenMonitoring() {
+        if (!this.shurikenMonitoringActive) {
+            this.shurikenMonitoringActive = true;
+            console.log('🌟 Shuriken monitoring system activated');
+        }
+    }
+
+    checkTrapsBlastRadius(time) {
+        if (!this.traps || !this.trapMonitoringActive) return;
+
+        const activeTrapChildren = this.traps.getChildren().filter(trap => trap.active && trap.getData('isArmed'));
+        
+        activeTrapChildren.forEach(trap => {
+            const deploymentTime = trap.getData('deploymentTime');
+            const timeSinceDeployment = time - deploymentTime;
+            
+            // Detonate after 2 seconds (2000ms)
+            if (timeSinceDeployment >= 2000) {
+                this.triggerTrapBlast(trap);
+            }
+        });
+    }
+
+    triggerTrapBlast(trap) {
+        if (!trap.getData('isArmed')) return; // Already triggered
+        
+        const deployedBy = trap.getData('deployedBy') || 'Unknown';
+        
+        console.log(`💥 Trap deployed by ${deployedBy} exploded after 2 seconds!`);
+        
+        // Disarm the trap
+        trap.setData('isArmed', false);
+        
+        // Find all characters within blast radius (100 pixels)
+        const trapX = trap.x;
+        const trapY = trap.y;
+        const blastRadius = 100;
+        
+        const charactersToCheck = [this.player, ...this.bots].filter(char => 
+            char && char.sprite && char.sprite.active && !char.isFalling && !char.isBlasted
+        );
+        
+        const charactersHit = [];
+        charactersToCheck.forEach(character => {
+            const distance = Phaser.Math.Distance.Between(
+                character.sprite.x, character.sprite.y,
+                trapX, trapY
+            );
+            
+            if (distance <= blastRadius) {
+                charactersHit.push(character);
+            }
+        });
+        
+        // Play blast animation with error checking
+        if (this.anims.exists('trap_lighting')) {
+            trap.play('trap_lighting');
+            trap.once('animationcomplete', () => {
+                if (this.anims.exists('blast_anim')) {
+                    trap.play('blast_anim');
+                    trap.once('animationcomplete', () => {
+                        // Remove trap after blast animation
+                        if (trap && trap.active) {
+                            trap.destroy();
+                        }
+                    });
+                } else {
+                    console.warn('blast_anim animation not found');
+                    if (trap && trap.active) {
+                        trap.destroy();
+                    }
+                }
+            });
+        } else {
+            console.warn('trap_lighting animation not found');
+            // Skip animations and just destroy the trap
+            if (trap && trap.active) {
+                trap.destroy();
+            }
+        }
+        
+        // Apply blast effect to all hit characters
+        charactersHit.forEach(character => {
+            this.blastOffCharacter(character);
+        });
+        
+        // Add visual effects
+        this.cameras.main.flash(150, 255, 128, 0); // Orange flash
+        this.shakeCamera(0.05, 300); // Strong shake for explosions
+    }
+
+    blastOffCharacter(character) {
+        if (character.isBlasted) return; // Already blasted
+        
+        const characterName = character.name || (character.botId ? `Bot ${character.botId}` : 'Player');
+        console.log(`💥 ${characterName} has been blasted off! Will revive in 2 seconds.`);
+        
+        // Mark as blasted
+        character.isBlasted = true;
+        
+        // Stop character movement
+        character.sprite.body.setVelocity(0, 0);
+        character.sprite.body.setAcceleration(0, 0);
+        
+        // Apply blast knockback effect
+        const blastForceX = Phaser.Math.Between(-200, 200);
+        const blastForceY = -300; // Upward force
+        character.sprite.body.setVelocity(blastForceX, blastForceY);
+        
+        // Add red glow to show blasted state
+        character.applyGlow(0xff0000); // Red glow
+        
+        // Hide character temporarily (fade out)
+        this.tweens.add({
+            targets: character.sprite,
+            alpha: 0.3,
+            duration: 200,
+            ease: 'Power2'
+        });
+        
+        // Revive after 2 seconds
+        this.time.delayedCall(2000, () => {
+            this.reviveCharacter(character);
+        });
+    }
+
+    reviveCharacter(character) {
+        if (!character.sprite || !character.sprite.active) return;
+        
+        const characterName = character.name || (character.botId ? `Bot ${character.botId}` : 'Player');
+        console.log(`✨ ${characterName} has been revived!`);
+        
+        // Remove blasted state
+        character.isBlasted = false;
+        
+        // Restore visibility
+        this.tweens.add({
+            targets: character.sprite,
+            alpha: 1,
+            duration: 300,
+            ease: 'Power2'
+        });
+        
+        // Remove blast glow
+        character.removeGlow();
+        
+        // Position character on ground (prevent falling through)
+        character.sprite.y = this.groundTopY - (character.sprite.height / 2);
+        character.sprite.body.setVelocity(0, 0);
+        
+        // Restore normal movement
+        if (character === this.player) {
+            character.startMoving();
+        } else {
+            character.startMoving();
+        }
+        
+        console.log(`🏃 ${characterName} is back in the race!`);
+    }
 
     update(time, delta) {
         if (!this.gameStarted || this.gameOver) { // Added !this.gameStarted check
@@ -387,12 +622,10 @@ class GameScene extends Phaser.Scene {
             return;
         }
 
-
         // Player Update
         if (this.player && this.player.sprite.active) { // Check if sprite is active
             this.player.update(this.cursors, this.trackSegments, this.wallsGroup, this.fallDeathY, this.groundTopY);
         }
-
 
         // Bot Updates
         this.bots.forEach(bot => {
@@ -403,6 +636,20 @@ class GameScene extends Phaser.Scene {
             }
         });
 
+        // Update platform powerups to follow their platforms
+        updatePlatformPowerups(this.powerupsGroup);
+
+        // Check trap timers periodically for detonation
+        if (time - this.lastTrapCheck > this.trapCheckInterval) {
+            this.checkTrapsBlastRadius(time);
+            this.lastTrapCheck = time;
+        }
+
+        // Check shuriken collisions every frame
+        if (time - this.lastShurikenCheck > this.shurikenCheckInterval) {
+            this.checkShurikenCollisions(time);
+            this.lastShurikenCheck = time;
+        }
 
         // Position Tracking
         // Fall detection
@@ -459,6 +706,21 @@ class GameScene extends Phaser.Scene {
             this.countdownTimer.remove(false);
             this.countdownTimer = null;
         }
+        
+        // Clean up trap system
+        if (this.traps) {
+            this.traps.clear(true, true);
+            this.traps = null;
+        }
+        this.trapMonitoringActive = false;
+        
+        // Clean up shuriken system
+        if (this.shurikens) {
+            this.shurikens.clear(true, true);
+            this.shurikens = null;
+        }
+        this.shurikenMonitoringActive = false;
+
         // Other group cleanups if necessary (Phaser usually handles children of groups)
         // this.groundGroup.destroy(true); // Example, if not automatically handled or if children need specific cleanup
         // this.wallsGroup.destroy(true);
@@ -467,5 +729,171 @@ class GameScene extends Phaser.Scene {
         // It's good practice to remove event listeners if any were added manually to scene events
         // this.events.off('shutdown', this.shutdown, this); // This one is tricky, as it's removing itself.
                                                               // The one added above for deployPlayerPowerup is safer.
+    }
+
+    checkShurikenCollisions(time) {
+        if (!this.shurikens || !this.shurikenMonitoringActive) return;
+
+        const activeShurikens = this.shurikens.getChildren().filter(shuriken => shuriken.active);
+        
+        activeShurikens.forEach(shuriken => {
+            const hasReflected = shuriken.getData('hasReflected');
+            const hasHitCharacter = shuriken.getData('hasHitCharacter');
+            const direction = shuriken.getData('direction');
+            const rotationSpeed = shuriken.getData('rotationSpeed') || 0.3;
+            
+            // Update rotation for spinning effect
+            shuriken.rotation += rotationSpeed;
+            
+            // Check for character collisions first
+            const charactersToCheck = [this.player, ...this.bots].filter(char => 
+                char && char.sprite && char.sprite.active && !char.isFalling && !char.isBlasted
+            );
+            
+            let hitCharacter = false;
+            charactersToCheck.forEach(character => {
+                const distance = Phaser.Math.Distance.Between(
+                    character.sprite.x, character.sprite.y,
+                    shuriken.x, shuriken.y
+                );
+                
+                // Check collision with 40 pixel radius
+                if (distance <= 40) {
+                    this.shurikenHitCharacter(shuriken, character);
+                    hitCharacter = true;
+                }
+            });
+            
+            // If hit a character, destroy shuriken and don't check walls
+            if (hitCharacter) {
+                return;
+            }
+            
+            // Check for wall collisions only if hasn't hit a character yet
+            if (!hasHitCharacter) {
+                // Check collision with walls
+                if (this.wallsGroup) {
+                    this.wallsGroup.getChildren().forEach(wall => {
+                        if (wall.active && wall.body) {
+                            const distance = Phaser.Math.Distance.Between(
+                                wall.x, wall.y,
+                                shuriken.x, shuriken.y
+                            );
+                            
+                            // Check collision with wall (30 pixel radius)
+                            if (distance <= 30) {
+                                this.shurikenHitWall(shuriken, wall);
+                            }
+                        }
+                    });
+                }
+                
+                // Check world bounds for reflection
+                if (shuriken.x <= 20 && direction === -1) {
+                    // Hit left world bound, reflect right
+                    this.shurikenReflect(shuriken, 1);
+                } else if (shuriken.x >= this.physics.world.bounds.width - 20 && direction === 1) {
+                    // Hit right world bound, reflect left
+                    this.shurikenReflect(shuriken, -1);
+                }
+                
+                // Check if shuriken has completed its cycle (reflected and traveled back)
+                if (hasReflected) {
+                    // If traveling left and has reflected, check if it's gone far enough
+                    if (direction === -1 && shuriken.x <= 100) {
+                        this.destroyShuriken(shuriken, 'completed cycle');
+                    }
+                    // If traveling right and has reflected, check if it's gone far enough
+                    else if (direction === 1 && shuriken.x >= this.physics.world.bounds.width - 100) {
+                        this.destroyShuriken(shuriken, 'completed cycle');
+                    }
+                }
+            }
+        });
+    }
+
+    shurikenHitCharacter(shuriken, character) {
+        const deployedBy = shuriken.getData('deployedBy') || 'Unknown';
+        const characterName = character.name || (character.botId ? `Bot ${character.botId}` : 'Player');
+        
+        console.log(`🌟 ${characterName} was hit by shuriken deployed by ${deployedBy}!`);
+        
+        // Mark that this shuriken has hit a character
+        shuriken.setData('hasHitCharacter', true);
+        
+        // Kill the character (they will revive in 2 seconds)
+        this.shurikenKillCharacter(character);
+        
+        // Destroy the shuriken immediately when it hits someone
+        this.destroyShuriken(shuriken, 'hit character');
+    }
+
+    shurikenHitWall(shuriken, wall) {
+        const hasReflected = shuriken.getData('hasReflected');
+        const hasHitCharacter = shuriken.getData('hasHitCharacter');
+        
+        // If already hit a character, don't reflect - just destroy
+        if (hasHitCharacter) {
+            this.destroyShuriken(shuriken, 'hit wall after character');
+            return;
+        }
+        
+        // If hasn't reflected yet, reflect off the wall
+        if (!hasReflected) {
+            const currentDirection = shuriken.getData('direction');
+            this.shurikenReflect(shuriken, -currentDirection);
+            console.log(`🌟 Shuriken reflected off wall! New direction: ${-currentDirection}`);
+        } else {
+            // If already reflected, destroy the shuriken
+            this.destroyShuriken(shuriken, 'hit wall after reflection');
+        }
+    }
+
+    shurikenReflect(shuriken, newDirection) {
+        shuriken.setData('hasReflected', true);
+        shuriken.setData('direction', newDirection);
+        shuriken.body.setVelocityX(400 * newDirection); // Same speed, opposite direction
+        
+        // Add visual effect for reflection
+        if (this.shakeCamera) {
+            this.shakeCamera(0.01, 100);
+        }
+    }
+
+    shurikenKillCharacter(character) {
+        if (character.isBlasted) return; // Already killed
+        
+        const characterName = character.name || (character.botId ? `Bot ${character.botId}` : 'Player');
+        console.log(`💀 ${characterName} was killed by shuriken! Will revive in 2 seconds.`);
+        
+        // Mark as killed
+        character.isBlasted = true;
+        
+        // Stop character movement
+        character.sprite.body.setVelocity(0, 0);
+        character.sprite.body.setAcceleration(0, 0);
+        
+        // Apply death effect (no knockback for shuriken, just fade)
+        character.applyGlow(0xff0000); // Red glow
+        
+        // Hide character temporarily (fade out)
+        this.tweens.add({
+            targets: character.sprite,
+            alpha: 0.3,
+            duration: 300,
+            ease: 'Power2'
+        });
+        
+        // Revive after 2 seconds (same as blast)
+        this.time.delayedCall(2000, () => {
+            this.reviveCharacter(character);
+        });
+    }
+
+    destroyShuriken(shuriken, reason) {
+        console.log(`🌟 Shuriken destroyed: ${reason}`);
+        if (shuriken && shuriken.active) {
+            shuriken.destroy();
+        }
     }
 }

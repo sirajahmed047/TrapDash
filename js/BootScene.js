@@ -36,6 +36,31 @@ class BootScene extends Phaser.Scene {
             frameHeight: 64
         });
 
+        // Load lightning strike animation
+        this.load.spritesheet('lightning_strike', 'assets/images/lightningstrike.png', {
+            frameWidth: 64,
+            frameHeight: 128 // Lightning is taller, adjust based on your sprite
+        });
+
+        // Load droppable trap animation
+        this.load.spritesheet('droptrap', 'assets/images/droptrap.png', {
+            frameWidth: 64,
+            frameHeight: 64
+        });
+
+        // Load blast effect animation
+        this.load.spritesheet('blast', 'assets/images/blast.png', {
+            frameWidth: 64,
+            frameHeight: 64
+        });
+
+        // Load shuriken animation (single frame for now - replace with 3x3 grid later)
+        this.load.image('shuriken', 'assets/images/shuriken.png');
+
+        console.log('Loading droptrap sprite sheet...');
+        console.log('Loading blast sprite sheet...');
+        console.log('Loading shuriken sprite sheet...');
+
         // For example, if you have a logo for a loading bar:
         // this.load.image('logo', 'assets/images/logo.png');
     }
@@ -82,6 +107,43 @@ class BootScene extends Phaser.Scene {
             frameRate: GameConfig.JUMP_DUST_ANIM_FRAMERATE,
             repeat: 0 // Play once
         });
+
+        // Create lightning strike animation
+        this.anims.create({
+            key: 'lightning_strike_anim',
+            frames: this.anims.generateFrameNumbers('lightning_strike', { start: 0, end: 7 }), // Assuming 8 frames (0-7), adjust based on your sprite
+            frameRate: 15, // Fast animation for dramatic effect
+            repeat: 0 // Play once
+        });
+
+        // Create droptrap animations
+        this.anims.create({
+            key: 'trap_idle',
+            frames: this.anims.generateFrameNumbers('droptrap', { start: 0, end: 0 }), // First frame as idle
+            frameRate: 1,
+            repeat: -1
+        });
+        console.log('Created trap_idle animation');
+
+        this.anims.create({
+            key: 'trap_lighting',
+            frames: this.anims.generateFrameNumbers('droptrap', { start: 0, end: 1 }), // Use first 2 frames only
+            frameRate: 8,
+            repeat: 0
+        });
+        console.log('Created trap_lighting animation');
+
+        // Create blast animation using new blast.png
+        this.anims.create({
+            key: 'blast_anim',
+            frames: this.anims.generateFrameNumbers('blast', { start: 0, end: 5 }), // Assuming 6 frames (0-5), adjust based on sprite
+            frameRate: 15, // Fast blast animation
+            repeat: 0 // Play once
+        });
+        console.log('Created blast_anim animation');
+
+        // Note: Shuriken uses single image (not spritesheet) - rotation handled in physics
+        console.log('Shuriken loaded as single frame - rotation handled in game physics');
 
         // Once assets are loaded, transition to the MainMenuScene
         this.scene.start('MainMenuScene');
