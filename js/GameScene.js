@@ -864,30 +864,137 @@ class GameScene extends Phaser.Scene {
         if (character.isBlasted) return; // Already killed
         
         const characterName = character.name || (character.botId ? `Bot ${character.botId}` : 'Player');
-        console.log(`💀 ${characterName} was killed by shuriken! Will revive in 2 seconds.`);
+        console.log(`💀 ${characterName} was killed by shuriken! Will respawn in 2 seconds.`);
         
         // Mark as killed
         character.isBlasted = true;
         
-        // Stop character movement
+        // Stop character movement completely
         character.sprite.body.setVelocity(0, 0);
         character.sprite.body.setAcceleration(0, 0);
+        character.sprite.body.setEnable(false); // Disable physics body so they can't move
         
-        // Apply death effect (no knockback for shuriken, just fade)
-        character.applyGlow(0xff0000); // Red glow
+        // Try to implement split-in-half animation effect
+        try {
+            this.createSplitDeathEffect(character);
+        } catch (error) {
+            console.log('Split animation not available, using simple disappear effect');
+            // Fallback: Just make character completely invisible
+            character.sprite.setVisible(false);
+            if (character.nameTag) character.nameTag.setVisible(false);
+        }
         
-        // Hide character temporarily (fade out)
+        // Revive after 2 seconds
+        this.time.delayedCall(2000, () => {
+            this.respawnCharacterFromGround(character);
+        });
+    }
+
+    createSplitDeathEffect(character) {
+        // Create two halves of the character sprite for split effect
+        const sprite = character.sprite;
+        const spriteTexture = sprite.texture.key;
+        
+        // Get sprite dimensions
+        const width = sprite.width;
+        const height = sprite.height;
+        
+        // Create left half
+        const leftHalf = this.add.image(sprite.x - width/4, sprite.y, spriteTexture);
+        leftHalf.setOrigin(0.5, 0.5);
+        leftHalf.setScale(sprite.scaleX, sprite.scaleY);
+        leftHalf.setCrop(0, 0, width/2, height); // Show left half only
+        leftHalf.setDepth(sprite.depth);
+        
+        // Create right half
+        const rightHalf = this.add.image(sprite.x + width/4, sprite.y, spriteTexture);
+        rightHalf.setOrigin(0.5, 0.5);
+        rightHalf.setScale(sprite.scaleX, sprite.scaleY);
+        rightHalf.setCrop(width/2, 0, width/2, height); // Show right half only
+        rightHalf.setDepth(sprite.depth);
+        
+        // Hide original sprite
+        sprite.setVisible(false);
+        if (character.nameTag) character.nameTag.setVisible(false);
+        
+        // Animate halves splitting apart and falling
+        this.tweens.add({
+            targets: leftHalf,
+            x: leftHalf.x - 50,
+            y: leftHalf.y + 100,
+            rotation: -0.5,
+            alpha: 0,
+            duration: 1000,
+            ease: 'Quad.easeIn',
+            onComplete: () => {
+                leftHalf.destroy();
+            }
+        });
+        
+        this.tweens.add({
+            targets: rightHalf,
+            x: rightHalf.x + 50,
+            y: rightHalf.y + 100,
+            rotation: 0.5,
+            alpha: 0,
+            duration: 1000,
+            ease: 'Quad.easeIn',
+            onComplete: () => {
+                rightHalf.destroy();
+            }
+        });
+        
+        // Add some particle effects for dramatic effect
+        this.cameras.main.flash(100, 255, 0, 0); // Red flash
+    }
+
+    respawnCharacterFromGround(character) {
+        if (!character.sprite || !character.sprite.scene) return; // Character was destroyed
+        
+        const characterName = character.name || (character.botId ? `Bot ${character.botId}` : 'Player');
+        console.log(`✨ ${characterName} is respawning from the ground!`);
+        
+        // Remove killed state
+        character.isBlasted = false;
+        character.isFalling = false;
+        
+        // Find a safe respawn position on the ground
+        let respawnX = character.lastSafeX || character.sprite.x;
+        if (character.lastSafeGroundSegment && character.sprite.body) {
+            const buffer = (character.sprite.body.width / 2) + 5;
+            respawnX = character.lastSafeGroundSegment.end - buffer;
+            respawnX = Math.max(respawnX, character.lastSafeGroundSegment.start + (character.sprite.body.width / 2));
+            respawnX = Math.min(respawnX, character.lastSafeGroundSegment.end - (character.sprite.body.width / 2));
+        }
+        
+        // Position character on ground
+        character.sprite.setPosition(respawnX, this.groundTopY - (character.sprite.height / 2));
+        character.sprite.setVisible(true);
+        character.sprite.body.setEnable(true);
+        character.sprite.body.setVelocity(0, 0);
+        if (character.nameTag) character.nameTag.setVisible(true);
+        
+        // Remove any death effects
+        character.removeGlow();
+        
+        // Start character moving again
+        if (character === this.player) {
+            character.startMoving();
+        } else {
+            character.startMoving();
+        }
+        
+        // Play respawn effect
         this.tweens.add({
             targets: character.sprite,
-            alpha: 0.3,
-            duration: 300,
-            ease: 'Power2'
+            alpha: { from: 0.3, to: 1 },
+            scaleX: { from: 1.2, to: 1 },
+            scaleY: { from: 1.2, to: 1 },
+            duration: 500,
+            ease: 'Back.easeOut'
         });
         
-        // Revive after 2 seconds (same as blast)
-        this.time.delayedCall(2000, () => {
-            this.reviveCharacter(character);
-        });
+        console.log(`🏃 ${characterName} is back in the race!`);
     }
 
     destroyShuriken(shuriken, reason) {
