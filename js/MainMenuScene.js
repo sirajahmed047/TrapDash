@@ -70,37 +70,8 @@ class MainMenuScene extends Phaser.Scene {
     }
 
     startSinglePlayer() {
-        // Ensure single player mode is set
-        if (window.multiplayerManager) {
-            multiplayerManager.setSinglePlayerMode();
-        }
-        
         this.scene.start('GameScene', { gameMode: 'singleplayer' }); // Pass gameMode
         this.scene.launch('UIScene'); // Launch UI scene alongside GameScene
-    }
-
-    // DISABLED MULTIPLAYER FUNCTIONALITY - KEEPING CODE FOR FUTURE USE
-    // startMultiplayer() {
-    //     // Go to lobby scene for multiplayer
-    //     this.scene.start('LobbyScene');
-    // }
-
-    showComingSoonMessage() {
-        // Create a temporary message when multiplayer is clicked
-        const messageText = this.add.text(this.cameras.main.width / 2, this.cameras.main.height / 2 + 80, 
-            'Multiplayer mode is coming soon!\nFocus on single player for now 🎮', {
-            fontSize: '18px',
-            fill: '#FFD700',
-            fontFamily: 'Arial',
-            align: 'center',
-            backgroundColor: '#000000',
-            padding: { x: 20, y: 10 }
-        }).setOrigin(0.5);
-
-        // Remove the message after 3 seconds
-        this.time.delayedCall(3000, () => {
-            messageText.destroy();
-        });
     }
 
     update() {

@@ -49,32 +49,6 @@ const GameConfig = {
     // Moving Obstacles Configuration
     MOVING_PLATFORM_COLOR_VERTICAL: 0x8B4513,   // Brown for vertical platforms
     MOVING_PLATFORM_COLOR_HORIZONTAL: 0x654321, // Darker brown for horizontal platforms
-    
-    // Multiplayer Configuration
-    MULTIPLAYER: {
-        MAX_PLAYERS: 4,
-        MIN_PLAYERS_TO_START: 2, // Minimum human players to start a game, or 1 if bot fill is enabled
-        ROOM_CODE_LENGTH: 6,
-        ROOM_TIMEOUT_MS: 300000, // 5 minutes
-        POSITION_SYNC_RATE: 20, // Updates per second for position sync (reduced for mobile)
-        GAME_EVENT_SYNC_RATE: 10, // Updates per second for game events (reduced for mobile)
-        NETWORK_TIMEOUT_MS: 10000, // Network operation timeout
-        RECONNECTION_ATTEMPTS: 3,
-        PING_INTERVAL_MS: 2000, // Ping interval for connection monitoring
-        DEFAULT_PLAYER_NAME_PREFIX: "Runner",
-        MAX_USERNAME_LENGTH: 8,
-        
-        // Mobile-specific settings
-        MOBILE_SYNC_RATE_LOW: 30, // Lower sync rate for poor connections
-        MOBILE_SYNC_RATE_HIGH: 20, // Default sync rate (already reduced)
-        ADAPTIVE_SYNC_THRESHOLD: 200, // Latency threshold for adaptive sync (ms)
-        
-        // Firebase paths
-        ROOMS_PATH: 'rooms',
-        PLAYERS_PATH: 'players',
-        GAME_STATE_PATH: 'gameState',
-        QUEUE_PATH: 'matchmakingQueue'
-    }
 };
 // Make it available globally if not using modules
 // window.GameConfig = GameConfig; // Or handle via script loading order

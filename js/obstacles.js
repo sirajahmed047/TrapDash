@@ -447,7 +447,7 @@ function createChunkedTrack(scene, trackWidth, groundTopY, groundSegmentHeight, 
     const wallHeight = 96;
     const wallY = groundTopY - (wallHeight / 2);
     
-    // Use deterministic random for multiplayer consistency
+    // Use deterministic random for consistent track generation
     let randomSeed = seed || Date.now();
     const seededRandom = () => {
         randomSeed = (randomSeed * 9301 + 49297) % 233280;
@@ -601,7 +601,7 @@ function placeObstacleChunk(scene, pattern, offsetX, groundTopY, wallsGroup, mov
 function createVariedTrack(scene, trackWidth, groundTopY, groundSegmentHeight, seed = null) {
     console.log("🏗️ Creating varied track with obstacle patterns/chunks");
     if (seed) {
-        console.log(`🎲 Using deterministic seed for multiplayer: ${seed}`);
+        console.log(`🎲 Using deterministic seed: ${seed}`);
     }
     return createChunkedTrack(scene, trackWidth, groundTopY, groundSegmentHeight, seed);
 }

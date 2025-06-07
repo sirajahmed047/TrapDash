@@ -51,10 +51,6 @@ class GameOverScene extends Phaser.Scene {
         // Retry Button
         const retryButton = this.add.text(centerX - 100, centerY + 180, '🔄 Race Again', buttonStyle).setOrigin(0.5).setInteractive();
         retryButton.on('pointerdown', () => {
-            // Clean up multiplayer room and switch to single player for retry
-            if (window.multiplayerManager && multiplayerManager.isInRoom()) {
-                multiplayerManager.setSinglePlayerMode();
-            }
             this.scene.stop('UIScene');
             this.scene.start('GameScene');
             this.scene.launch('UIScene');
@@ -65,10 +61,6 @@ class GameOverScene extends Phaser.Scene {
         // Main Menu Button
         const mainMenuButton = this.add.text(centerX + 100, centerY + 180, '🏠 Main Menu', buttonStyle).setOrigin(0.5).setInteractive();
         mainMenuButton.on('pointerdown', () => {
-            // Clean up multiplayer room when going to main menu
-            if (window.multiplayerManager && multiplayerManager.isInRoom()) {
-                multiplayerManager.leaveRoom();
-            }
             this.scene.start('MainMenuScene');
         });
         mainMenuButton.on('pointerover', () => mainMenuButton.setStyle(buttonHoverStyle));

@@ -176,18 +176,6 @@ class UIScene extends Phaser.Scene {
                 });
             }
             
-            // Count remote players ahead of player (for multiplayer)
-            if (gameScene.isMultiplayer && gameScene.remotePlayers) {
-                Object.values(gameScene.remotePlayers).forEach(remotePlayer => {
-                    if (remotePlayer && remotePlayer.sprite && remotePlayer.sprite.active) {
-                        totalRacers++;
-                        if (remotePlayer.sprite.x > gameScene.player.sprite.x) {
-                            playersAhead++;
-                        }
-                    }
-                });
-            }
-            
             // Player's position is the number of characters ahead + 1
             const playerPosition = playersAhead + 1;
             

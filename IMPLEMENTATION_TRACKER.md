@@ -406,122 +406,176 @@ To restore multiplayer functionality in the future:
 
 **Note:** Multiplayer functionality (Phases 12-19) is temporarily disabled to focus on a stable single-player Android release. All multiplayer code is preserved and can be re-enabled by uncommenting the relevant sections in MainMenuScene.js and restoring the multiplayer button functionality.
 
-**Phase 15: Mobile-Optimized Multiplayer UI**
-*   [ ] **Mobile-First Lobby Interface:**
-    *   [ ] Design touch-friendly lobby with large buttons (minimum 44pt touch targets).
-    *   [ ] Implement responsive layout for various mobile screen sizes.
-    *   [ ] Add haptic feedback for button interactions (where supported).
-    *   [ ] Create intuitive room code sharing (QR codes or simple copy/paste).
-    *   [ ] Implement connection status indicators (WiFi/cellular signal strength awareness).
-*   [ ] **In-Game Mobile Multiplayer UI:**
-    *   [ ] Enhance existing UIScene.js with multiplayer elements (player names, positions).
-    *   [ ] Add network status indicator (connection quality, latency display).
-    *   [ ] Implement player identification system (colors, names, avatar indicators).
-    *   [ ] Add chat/emoji communication system for mobile (preset quick messages).
-    *   [ ] Create disconnection notification and reconnection prompts.
-*   [ ] **Performance Optimization for Mobile Multiplayer:**
+**Phase 15: Mobile-Optimized Single-Player UI & Controls**
+*   [ ] **Touch-Friendly Interface:**
+    *   [ ] Redesign UI elements for mobile touch interaction (minimum 44pt touch targets).
+    *   [ ] Implement responsive layout for various mobile screen sizes (phones, tablets).
+    *   [ ] Add haptic feedback for button interactions and game events (where supported).
+    *   [ ] Optimize power-up button placement and size for thumb accessibility.
+    *   [ ] Add visual feedback for touch interactions (button press animations).
+*   [ ] **Mobile Control Enhancements:**
+    *   [ ] Implement on-screen virtual controls as alternative to keyboard.
+    *   [ ] Add swipe gestures for jump and power-up deployment.
+    *   [ ] Implement touch-and-hold for continuous movement.
+    *   [ ] Add customizable control sensitivity settings.
+    *   [ ] Implement auto-run toggle option for mobile convenience.
+*   [ ] **Performance Optimization for Mobile:**
     *   [ ] Implement adaptive quality settings based on device performance.
-    *   [ ] Add network quality detection and adaptive sync rates.
-    *   [ ] Optimize asset loading for multiplayer (shared asset management).
+    *   [ ] Add frame rate optimization for lower-end devices.
+    *   [ ] Optimize asset loading and memory management for mobile.
     *   [ ] Implement background/foreground app state handling.
+    *   [ ] Add battery usage optimization features.
 
-**Phase 16: Advanced Multiplayer Features**
-*   [ ] **Enhanced Bot Integration:**
-    *   [ ] Modify existing Bot.js to work seamlessly in multiplayer environment.
-    *   [ ] Ensure bot AI decisions are deterministic across all clients.
-    *   [ ] Implement bot behavior synchronization for consistent gameplay.
-    *   [ ] Add "Bot Difficulty" selection in lobby for filled bot slots.
-*   [ ] **Spectator Mode:**
-    *   [ ] Allow disconnected players to rejoin as spectators.
-    *   [ ] Implement spectator camera following different players.
-    *   [ ] Add spectator UI with player selection and statistics.
-*   [ ] **Post-Game Multiplayer Features:**
-    *   [ ] Enhanced podium system showing all 4 players with network usernames.
-    *   [ ] Add "Play Again" functionality keeping same room.
-    *   [ ] Implement basic statistics tracking (wins, games played, best times).
-    *   [ ] Add friend system for easy rematches (simple friend codes).
+**Phase 16: Enhanced Single-Player Game Modes**
+*   [ ] **Time Trial Mode:**
+    *   [ ] Implement solo time trial with ghost replay of best run.
+    *   [ ] Add personal best tracking and improvement suggestions.
+    *   [ ] Create time-based challenges with bronze/silver/gold medals.
+    *   [ ] Implement track-specific leaderboards (local storage).
+*   [ ] **Challenge Mode:**
+    *   [ ] Create daily challenges with specific objectives (collect X powerups, finish without dying, etc.).
+    *   [ ] Implement weekly challenges with increased difficulty.
+    *   [ ] Add challenge completion rewards (unlockable content).
+    *   [ ] Create achievement system for challenge milestones.
+*   [ ] **Endless Runner Mode:**
+    *   [ ] Implement procedurally generated infinite track.
+    *   [ ] Add distance-based scoring system.
+    *   [ ] Implement progressive difficulty increase.
+    *   [ ] Add power-up frequency balancing for endless mode.
+*   [ ] **Bot Difficulty Selection:**
+    *   [ ] Add easy/medium/hard bot difficulty options in main menu.
+    *   [ ] Implement different bot personalities for each difficulty.
+    *   [ ] Add option to customize number of bots (1-3).
+    *   [ ] Create bot behavior variations for replayability.
 
-**Phase 17: Multiplayer Stability & Error Handling**
-*   [ ] **Connection Management:**
-    *   [ ] Implement robust reconnection logic for mobile network switching.
-    *   [ ] Handle airplane mode and background app scenarios.
-    *   [ ] Add automatic game pause during network issues.
-    *   [ ] Implement timeout handling for unresponsive players.
-*   [ ] **Error Recovery Systems:**
-    *   [ ] Add graceful degradation when Firebase is unreachable.
-    *   [ ] Implement local game state backup for disconnection recovery.
-    *   [ ] Handle partial room disconnections (some players lost connection).
-    *   [ ] Add diagnostic tools for network troubleshooting.
-*   [ ] **Testing & Quality Assurance:**
-    *   [ ] Test multiplayer on various mobile devices and network conditions.
-    *   [ ] Implement stress testing for 4-player scenarios.
-    *   [ ] Test room management edge cases (host disconnection, room overflow).
-    *   [ ] Validate synchronization accuracy across different latency conditions.
+**Phase 17: Content Expansion & Customization**
+*   [ ] **Multiple Track Environments:**
+    *   [ ] Create desert theme with sand dunes and cacti obstacles.
+    *   [ ] Implement forest theme with tree logs and river gaps.
+    *   [ ] Add city theme with building obstacles and traffic elements.
+    *   [ ] Create ice theme with slippery surfaces and icicle hazards.
+*   [ ] **Character Customization:**
+    *   [ ] Add unlockable character skins/colors.
+    *   [ ] Implement character trails and particle effects.
+    *   [ ] Add character emotes and victory animations.
+    *   [ ] Create progression system for unlocking customizations.
+*   [ ] **Power-Up Expansion:**
+    *   [ ] Add new power-ups: Double Jump, Magnet (attract powerups), Invincibility.
+    *   [ ] Implement power-up combinations for enhanced effects.
+    *   [ ] Add rare/legendary power-ups with unique abilities.
+    *   [ ] Create power-up upgrade system through gameplay progression.
+*   [ ] **Track Builder (Advanced):**
+    *   [ ] Implement simple track editor for custom obstacle placement.
+    *   [ ] Add save/load functionality for custom tracks.
+    *   [ ] Create sharing system for custom tracks (local file export/import).
+    *   [ ] Add track validation to ensure playability.
 
-**Phase 18: Security, Optimization & Production Readiness**
-*   [ ] **Security Implementation:**
-    *   [ ] Implement comprehensive Firebase security rules for production.
-    *   [ ] Add rate limiting for Firebase operations (prevent spam/abuse).
-    *   [ ] Implement basic fraud detection for suspicious player behavior.
-    *   [ ] Add server-side validation for all critical game events.
-*   [ ] **Performance & Scalability:**
-    *   [ ] Optimize Firebase usage for cost-effective scaling.
-    *   [ ] Implement connection pooling and efficient data structures.
-    *   [ ] Add analytics for monitoring multiplayer performance.
-    *   [ ] Create monitoring dashboard for active games and player counts.
-*   [ ] **Mobile App Store Preparation:**
-    *   [ ] Ensure multiplayer functionality works seamlessly with CapacitorJS wrapper.
-    *   [ ] Add offline mode detection and appropriate messaging.
-    *   [ ] Implement app store review guidelines compliance for multiplayer games.
-    *   [ ] Add privacy policy and terms of service for multiplayer data collection.
-*   [ ] **Future-Proofing & Extensibility:**
-    *   [ ] Design architecture to support future features (tournaments, clans, leaderboards).
-    *   [ ] Implement analytics for player behavior and retention analysis.
-    *   [ ] Add A/B testing framework for multiplayer features.
-    *   [ ] Create documentation for multiplayer system maintenance and updates.
+**Phase 18: Android App Store Preparation & Polish**
+*   [ ] **CapacitorJS Integration:**
+    *   [ ] Set up CapacitorJS for Android app wrapper.
+    *   [ ] Configure app icons, splash screens, and metadata.
+    *   [ ] Implement native Android features (notifications, app shortcuts).
+    *   [ ] Add proper Android back button handling.
+    *   [ ] Test app performance on various Android devices.
+*   [ ] **App Store Optimization:**
+    *   [ ] Create compelling app store screenshots and videos.
+    *   [ ] Write engaging app description highlighting key features.
+    *   [ ] Implement app store review guidelines compliance.
+    *   [ ] Add privacy policy and terms of service.
+    *   [ ] Optimize app size and loading times for store approval.
+*   [ ] **Analytics & Monitoring:**
+    *   [ ] Implement basic analytics for player behavior tracking.
+    *   [ ] Add crash reporting and error monitoring.
+    *   [ ] Track game completion rates and difficulty balance.
+    *   [ ] Monitor performance metrics on different devices.
+*   [ ] **Localization & Accessibility:**
+    *   [ ] Add support for multiple languages (Spanish, French, German).
+    *   [ ] Implement accessibility features (colorblind support, larger text options).
+    *   [ ] Add sound/music volume controls.
+    *   [ ] Implement reduced motion options for sensitive users.
 
-**Phase 19: Advanced Multiplayer Features (Post-Launch)**
-*   [ ] **Enhanced Social Features:**
-    *   [ ] Global leaderboards with seasonal rankings.
-    *   [ ] Tournament mode with bracket systems.
-    *   [ ] Clan/team functionality with team-based competitions.
-    *   [ ] Achievement system with multiplayer-specific achievements.
-*   [ ] **Advanced Gameplay Modes:**
-    *   [ ] Team-based races (2v2 mode).
-    *   [ ] Elimination rounds (battle royale style with increasing difficulty).
-    *   [ ] Custom track creation and sharing between players.
-    *   [ ] Power-up drafting system for strategic gameplay.
+**Phase 19: Post-Launch Enhancements & Updates**
+*   [ ] **Player Progression System:**
+    *   [ ] Implement XP system based on race performance.
+    *   [ ] Add level progression with unlockable rewards.
+    *   [ ] Create achievement system with meaningful milestones.
+    *   [ ] Add daily login rewards and streak bonuses.
+*   [ ] **Advanced Statistics:**
+    *   [ ] Implement detailed statistics tracking (races won, distance traveled, powerups used).
+    *   [ ] Add personal performance graphs and trends.
+    *   [ ] Create race history with replay functionality.
+    *   [ ] Add comparison with previous performances.
+*   [ ] **Seasonal Content:**
+    *   [ ] Create holiday-themed tracks and obstacles.
+    *   [ ] Add seasonal character skins and effects.
+    *   [ ] Implement limited-time events and challenges.
+    *   [ ] Create seasonal leaderboards and competitions.
+*   [ ] **Community Features (Offline-First):**
+    *   [ ] Add screenshot sharing functionality.
+    *   [ ] Implement race replay sharing (video export).
+    *   [ ] Create local high score sharing between devices.
+    *   [ ] Add QR code sharing for custom tracks and achievements.
 
 ---
 
-**Critical Multiplayer Implementation Notes:**
+**🎯 SINGLE-PLAYER ANDROID ROADMAP PRIORITIES**
 
-1. **Mobile-First Design Philosophy:** Every multiplayer feature must be designed with mobile touch interfaces and network constraints in mind.
+**Immediate Focus (Phases 15-16):**
+1. **Mobile UI Optimization** - Ensure perfect touch controls and responsive design
+2. **Performance Optimization** - Smooth gameplay on all Android devices
+3. **Game Mode Expansion** - Add Time Trial, Challenge, and Endless modes for replayability
 
-2. **Progressive Enhancement:** The game should gracefully fall back to single-player mode if multiplayer services are unavailable.
+**Medium-Term Goals (Phases 17-18):**
+1. **Content Expansion** - Multiple environments, character customization, new power-ups
+2. **Android App Store Launch** - CapacitorJS integration, store optimization, analytics
 
-3. **Network Efficiency:** All multiplayer communications must be optimized for mobile data usage and varying network quality.
+**Long-Term Vision (Phase 19+):**
+1. **Player Engagement** - Progression systems, achievements, seasonal content
+2. **Community Features** - Offline-first sharing and social features
 
-4. **Cross-Platform Compatibility:** Multiplayer system should work seamlessly whether deployed as web app or mobile app via CapacitorJS.
+**Critical Single-Player Implementation Notes:**
 
-5. **Scalability Considerations:** Firebase implementation should be designed to handle increasing player counts without significant architecture changes.
+1. **Mobile-First Design Philosophy:** Every feature must be optimized for mobile touch interfaces and performance constraints.
 
-6. **Testing Strategy:** Extensive testing required across various mobile devices, network conditions, and geographic locations.
+2. **Offline-First Approach:** All features should work without internet connectivity, with optional online enhancements.
 
-**Technical Architecture Overview:**
+3. **Performance Priority:** Smooth 60fps gameplay on mid-range Android devices is essential for app store success.
+
+4. **Progressive Enhancement:** Start with core gameplay, then add advanced features based on user feedback.
+
+5. **Retention Focus:** Implement engaging progression systems and varied content to keep players coming back.
+
+6. **App Store Optimization:** Design features that will appeal to mobile gamers and app store algorithms.
+
+**Technical Architecture Overview (Single-Player Focus):**
 ```
 Client (Phaser 3 Game)
-├── MultiplayerManager.js (Central multiplayer coordination)
-├── NetworkSynchronizer.js (Real-time sync handling)
-├── PlayerAuth.js (Authentication management)
-├── LobbyScene.js (Room/matchmaking UI)
-└── Enhanced GameScene.js (Multiplayer-aware game logic)
+├── GameScene.js (Core single-player game logic)
+├── MainMenuScene.js (Game mode selection)
+├── UIScene.js (Mobile-optimized interface)
+├── GameOverScene.js (Results and progression)
+├── Player.js (Enhanced player mechanics)
+├── Bot.js (Advanced AI opponents)
+├── PowerupManager.js (Expanded power-up system)
+└── ObstacleManager.js (Dynamic track generation)
 
-Firebase Backend
-├── Realtime Database (Game state, rooms, player data)
-├── Authentication (Anonymous auth for immediate play)
-├── Cloud Functions (Server-side validation & anti-cheat)
-└── Analytics (Player behavior & performance monitoring)
+Local Storage
+├── Player Progress (XP, unlocks, achievements)
+├── Game Statistics (performance tracking)
+├── Settings (controls, audio, graphics)
+└── Custom Content (tracks, replays)
+
+Future Multiplayer Integration
+├── Preserved multiplayer codebase (commented out)
+├── Firebase configuration (ready for re-enablement)
+└── Network synchronization (dormant but intact)
 ```
+
+**Multiplayer Re-Integration Strategy:**
+When ready to add multiplayer back:
+1. Uncomment multiplayer scripts and UI elements
+2. Test single-player/multiplayer mode switching
+3. Integrate new single-player features with multiplayer systems
+4. Ensure feature parity between game modes
 
 ---
