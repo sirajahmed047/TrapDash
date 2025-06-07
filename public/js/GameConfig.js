@@ -53,12 +53,12 @@ const GameConfig = {
     // Multiplayer Configuration
     MULTIPLAYER: {
         MAX_PLAYERS: 4,
-        MIN_PLAYERS_TO_START: 2, // Minimum human players to start a game, or 1 if bot fill is enabled
+        MIN_PLAYERS_TO_START: 1, // Can start with 1 human + 3 bots
         ROOM_CODE_LENGTH: 6,
         ROOM_TIMEOUT_MS: 300000, // 5 minutes
-        POSITION_SYNC_RATE: 20, // Updates per second for position sync (reduced for mobile)
-        GAME_EVENT_SYNC_RATE: 10, // Updates per second for game events (reduced for mobile)
-        NETWORK_TIMEOUT_MS: 10000, // Network operation timeout
+        POSITION_SYNC_RATE: 60, // Updates per second for position sync
+        GAME_EVENT_SYNC_RATE: 30, // Updates per second for game events
+        NETWORK_TIMEOUT_MS: 5000, // Network operation timeout
         RECONNECTION_ATTEMPTS: 3,
         PING_INTERVAL_MS: 2000, // Ping interval for connection monitoring
         DEFAULT_PLAYER_NAME_PREFIX: "Runner",
@@ -66,8 +66,8 @@ const GameConfig = {
         
         // Mobile-specific settings
         MOBILE_SYNC_RATE_LOW: 30, // Lower sync rate for poor connections
-        MOBILE_SYNC_RATE_HIGH: 20, // Default sync rate (already reduced)
-        ADAPTIVE_SYNC_THRESHOLD: 200, // Latency threshold for adaptive sync (ms)
+        MOBILE_SYNC_RATE_HIGH: 60, // Higher sync rate for good connections
+        ADAPTIVE_SYNC_THRESHOLD: 150, // Latency threshold for adaptive sync (ms)
         
         // Firebase paths
         ROOMS_PATH: 'rooms',

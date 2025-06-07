@@ -1,0 +1,92 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Multiplayer Development Guidelines for TrapDash
+
+This guide outlines the specific considerations and patterns for implementing multiplayer functionality in the TrapDash game.
+
+## Core Multiplayer Architecture
+
+*   **Firebase Integration**: All multiplayer functionality uses Firebase services via CDN integration in `[index.html](mdc:index.html)`.
+    *   **Realtime Database**: Game state synchronization, room management, player data
+    *   **Authentication**: Anonymous authentication for immediate play (mobile-friendly)
+    *   **Cloud Functions**: Server-side validation and anti-cheat measures
+
+*   **Network Synchronization**: Handled by `[js/NetworkSynchronizer.js](mdc:js/NetworkSynchronizer.js)`
+    *   Position broadcasting optimized for mobile networks
+    *   Event synchronization (power-ups, collisions, finish line)
+    *   Adaptive sync rates based on network conditions
+    *   Client-side prediction with server reconciliation
+
+## Mobile-First Design Principles
+
+*   **Touch Interface Optimization**: All multiplayer UI must use minimum 44pt touch targets
+*   **Network Efficiency**: Optimize all communications for mobile data usage and varying network quality
+*   **Responsive Design**: Support various mobile screen sizes and orientations
+*   **Connection Management**: Handle airplane mode, background app scenarios, and network switching
+
+## Game State Management
+
+*   **Deterministic Behavior**: All bot AI and game mechanics must be deterministic across clients
+*   **Shared State Object**: Centralized game state that can be synchronized across all players
+*   **Mode Detection**: Automatic detection between single-player and multiplayer modes
+*   **Graceful Degradation**: Fallback to single-player when multiplayer services unavailable
+
+## Room and Lobby System
+
+*   **Room Management**: Handled by `[js/LobbyScene.js](mdc:js/LobbyScene.js)`
+    *   4-6 digit room codes for easy mobile sharing
+    *   Quick Match and Create Room options
+    *   Player ready/not ready status tracking
+    *   Auto-cleanup after 5 minutes of inactivity
+
+*   **Matchmaking**: Queue-based system for Quick Match
+    *   Bot filling when fewer than 4 players
+    *   Timeout mechanisms for abandoned rooms
+    *   Host migration capabilities
+
+## Security and Anti-Cheat
+
+*   **Server-Side Validation**: All critical game events validated via Cloud Functions
+    *   Movement bounds and speed limits
+    *   Power-up usage timing and cooldowns
+    *   Finish line crossing legitimacy
+    *   Basic anti-speed-hack protection
+
+*   **Rate Limiting**: Prevent spam and abuse of Firebase operations
+*   **Fraud Detection**: Monitor for suspicious player behavior patterns
+
+## Performance Optimization
+
+*   **Asset Management**: Shared asset loading for multiplayer sessions
+*   **Connection Pooling**: Efficient Firebase connection management
+*   **Delta Compression**: Minimize network traffic for mobile devices
+*   **Adaptive Quality**: Adjust game quality based on device performance and network conditions
+
+## Error Handling and Recovery
+
+*   **Reconnection Logic**: Robust handling of mobile network switching
+*   **Game State Backup**: Local backup for disconnection recovery
+*   **Partial Disconnections**: Handle scenarios where some players lose connection
+*   **Diagnostic Tools**: Network troubleshooting and monitoring capabilities
+
+## Testing Requirements
+
+*   **Multi-Device Testing**: Test across various mobile devices and network conditions
+*   **Stress Testing**: Validate 4-player scenarios under load
+*   **Edge Case Testing**: Room management, host disconnection, network failures
+*   **Latency Testing**: Synchronization accuracy across different latency conditions
+
+## Implementation Phases
+
+Refer to `[IMPLEMENTATION_TRACKER.md](mdc:IMPLEMENTATION_TRACKER.md)` phases 12-19 for detailed multiplayer implementation roadmap:
+*   **Phase 12**: Firebase setup and architecture refactoring
+*   **Phase 13**: Authentication and lobby system
+*   **Phase 14**: Real-time synchronization
+*   **Phase 15**: Mobile-optimized UI
+*   **Phase 16**: Advanced multiplayer features
+*   **Phase 17**: Stability and error handling
+*   **Phase 18**: Security and production readiness
+*   **Phase 19**: Post-launch advanced features

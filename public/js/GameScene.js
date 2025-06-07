@@ -6,7 +6,7 @@ class GameScene extends Phaser.Scene {
     init(data) {
         // Game mode detection (with defensive check for multiplayer components)
         this.gameMode = data?.gameMode || (window.multiplayerManager ? multiplayerManager.getGameMode() : 'singleplayer') || 'singleplayer';
-        this.isMultiplayer = (this.gameMode === 'multiplayer' && data?.roomId && window.multiplayerManager); // Ensure roomId and multiplayerManager are present for multiplayer
+        this.isMultiplayer = (this.gameMode === 'multiplayer' && window.multiplayerManager);
         this.roomPlayers = (this.isMultiplayer && window.multiplayerManager) ? multiplayerManager.getRoomPlayers() : {};
         
         // Game state flags, initialized here
@@ -19,7 +19,6 @@ class GameScene extends Phaser.Scene {
         // NEW: Podium tracking system
         this.finishers = []; // Array to track finishing order for podium
         this.finishersNeeded = 3; // Game ends when 3 characters finish
-        if (this.isMultiplayer) this.finishersNeeded = Math.min(3, Object.keys(this.roomPlayers).length);
         
         // Multiplayer-specific properties
         this.networkSynchronizer = null;
@@ -115,7 +114,7 @@ class GameScene extends Phaser.Scene {
         // Character initialization (bots or remote players)
         const characterInitialY = this.groundTopY - (64/2);
         if (this.isMultiplayer) {
-            await this.initializeMultiplayerCharacters(characterInitialY, data.roomId);
+            await this.initializeMultiplayerCharacters(characterInitialY);
         } else {
             this.initializeSinglePlayerBots(characterInitialY);
         }
@@ -136,7 +135,7 @@ class GameScene extends Phaser.Scene {
             
             // Add ground colliders for remote players in multiplayer
             if (this.isMultiplayer) {
-                Object.values(this.remotePlayers || {}).forEach(remotePlayer => {
+                Object.values(this.remotePlayers).forEach(remotePlayer => {
                     if (remotePlayer.sprite) {
                         this.physics.add.collider(remotePlayer.sprite, groundChildren);
                     }
@@ -158,7 +157,7 @@ class GameScene extends Phaser.Scene {
         
         // Add wall colliders for remote players in multiplayer
         if (this.isMultiplayer) {
-            Object.values(this.remotePlayers || {}).forEach(remotePlayer => {
+            Object.values(this.remotePlayers).forEach(remotePlayer => {
                 if (remotePlayer.sprite) {
                     this.physics.add.collider(remotePlayer.sprite, this.wallsGroup);
                 }
@@ -244,7 +243,7 @@ class GameScene extends Phaser.Scene {
         
         // Add powerup collection for remote players in multiplayer
         if (this.isMultiplayer) {
-            Object.entries(this.remotePlayers || {}).forEach(([uid, remotePlayer]) => {
+            Object.entries(this.remotePlayers).forEach(([uid, remotePlayer]) => {
                 if (remotePlayer.sprite) {
                     this.physics.add.overlap(remotePlayer.sprite, this.powerupsGroup, (remoteSprite, mysteryBox) => {
                         if (!mysteryBox.active) return;
@@ -262,10 +261,11 @@ class GameScene extends Phaser.Scene {
                         mysteryBox.setData(`lastCollect_${characterId}`, currentTime);
                         console.log(`🎁 Remote player ${remotePlayer.playerData.displayName} collected ${randomPowerup}`);
                         
+                        // TODO: Send powerup collection event through network
                         if (this.networkSynchronizer) {
                             this.networkSynchronizer.sendGameEvent({
                                 type: 'powerup_collected',
-                                uid: uid, // ensure uid is part of the event data
+                                playerUid: uid,
                                 powerupType: randomPowerup,
                                 timestamp: currentTime
                             });
@@ -290,14 +290,14 @@ class GameScene extends Phaser.Scene {
         
         // Add finish line collision for remote players in multiplayer
         if (this.isMultiplayer) {
-            Object.values(this.remotePlayers || {}).forEach(remotePlayer => {
+            Object.values(this.remotePlayers).forEach(remotePlayer => {
                 if (remotePlayer.sprite) {
                     this.physics.add.overlap(remotePlayer.sprite, this.finishLine, () => {
                         console.log(`🏁 Remote player ${remotePlayer.playerData.displayName} finished!`);
                         // Handle remote player finish through network sync
                         if (this.networkSynchronizer) {
                             this.networkSynchronizer.sendGameEvent({
-                                type: 'player_finished',
+                                type: 'character_finished',
                                 playerUid: remotePlayer.playerData.uid,
                                 timestamp: Date.now()
                             });
@@ -362,20 +362,6 @@ class GameScene extends Phaser.Scene {
         this.events.on(Phaser.Events.SHUTDOWN, () => {
             this.events.off('deployPlayerPowerup', undefined, this);
         }, this);
-        
-        // Fallback: Ensure UIScene is launched for multiplayer mode
-        // This is a safety check in case LobbyScene failed to launch UIScene
-        if (this.isMultiplayer) {
-            this.time.delayedCall(100, () => {
-                const uiScene = this.scene.get('UIScene');
-                if (!uiScene || !uiScene.scene.isActive()) {
-                    console.log('🔧 GameScene: UIScene not active in multiplayer, launching as fallback');
-                    this.scene.launch('UIScene');
-                } else {
-                    console.log('✅ GameScene: UIScene already active in multiplayer');
-                }
-            });
-        }
     }
 
     startCountdown() {
@@ -397,7 +383,7 @@ class GameScene extends Phaser.Scene {
         
         // Ensure remote players are stationary during countdown
         if (this.isMultiplayer) {
-            Object.values(this.remotePlayers || {}).forEach(remotePlayer => {
+            Object.values(this.remotePlayers).forEach(remotePlayer => {
                 if (remotePlayer.sprite && remotePlayer.sprite.body) {
                     remotePlayer.sprite.body.setVelocityX(0);
                     if (remotePlayer.sprite.anims) {
@@ -452,7 +438,7 @@ class GameScene extends Phaser.Scene {
         
         // Start remote players movement in multiplayer
         if (this.isMultiplayer) {
-            Object.values(this.remotePlayers || {}).forEach(remotePlayer => {
+            Object.values(this.remotePlayers).forEach(remotePlayer => {
                 if (remotePlayer.sprite && remotePlayer.sprite.body) {
                     remotePlayer.sprite.body.setVelocityX(GameConfig.PLAYER_SPEED_NORMAL);
                     if (remotePlayer.sprite.anims) {
@@ -467,31 +453,19 @@ class GameScene extends Phaser.Scene {
     handleCharacterFinish(characterInstance) {
         if (this.gameOver) return; // Already over
 
-        let isPlayer = false;
-        let isRemotePlayer = false;
+        const isPlayer = (characterInstance === this.player);
         let characterName;
         let hasAlreadyFinished = false;
-        let characterUid = null;
 
-        if (characterInstance === this.player) {
-            isPlayer = true;
+        if (isPlayer) {
             characterName = "Player";
-            characterUid = playerAuth.getCurrentUser()?.uid;
             hasAlreadyFinished = this.isPlayerActuallyFinished;
             if (!hasAlreadyFinished) {
                 this.isPlayerActuallyFinished = true;
                 characterInstance.onFinish(); // Call method on Player instance
             }
-        } else if (characterInstance instanceof Bot) { // It's a bot
+        } else { // It's a bot
             characterName = characterInstance.botId; // e.g., "Bot 1", "Bot 2", etc.
-            hasAlreadyFinished = characterInstance.isFinished;
-            characterUid = `bot_${characterInstance.botNumber}`;
-            if (!hasAlreadyFinished) {
-                characterInstance.onFinish(); // Call method on Bot instance (sets internal isFinished flag)
-                this.botsFinishedCount++;
-            }
-        } else { // It's a remote player's sprite (characterInstance is the sprite here)
-            isRemotePlayer = true;
             hasAlreadyFinished = characterInstance.isFinished;
             if (!hasAlreadyFinished) {
                 characterInstance.onFinish(); // Call method on Bot instance (sets internal isFinished flag)
@@ -501,17 +475,6 @@ class GameScene extends Phaser.Scene {
 
         // Add to finishers array if not already finished
         if (!hasAlreadyFinished) {
-            // For remote players, characterInstance is the sprite. We need the player data.
-            if (isRemotePlayer) {
-                const remotePlayerData = Object.values(this.remotePlayers).find(rp => rp.sprite === characterInstance);
-                if (remotePlayerData) {
-                    characterName = remotePlayerData.playerData.displayName;
-                    characterUid = remotePlayerData.playerData.uid;
-                    remotePlayerData.isFinished = true; // Mark remote player as finished
-                } else {
-                    return; // Should not happen
-                }
-            }
             const finishTime = this.time.now;
             const finishPosition = this.finishers.length + 1;
             
@@ -521,8 +484,7 @@ class GameScene extends Phaser.Scene {
                 position: finishPosition,
                 time: finishTime,
                 isPlayer: isPlayer
-            }); // uid added
-            if (characterUid) this.finishers[this.finishers.length - 1].uid = characterUid;
+            });
 
             console.log(`🏁 ${characterName} finished in position ${finishPosition}!`);
             
@@ -550,27 +512,14 @@ class GameScene extends Phaser.Scene {
             });
         }
 
-        const totalHumanPlayers = this.isMultiplayer ? Object.keys(this.roomPlayers).length : 1;
-        const totalRacersInGame = totalHumanPlayers + this.bots.length;
-        this.finishersNeeded = Math.min(3, totalRacersInGame); // Adjust finishersNeeded based on actual racers
-
         // Check if we have enough finishers to end the game
-        // Or if all human players have finished in a multiplayer game
-        const allHumansFinished = this.isMultiplayer && this.finishers.filter(f => !f.name.startsWith("Bot")).length >= totalHumanPlayers;
-
-        if ((this.finishers.length >= this.finishersNeeded || allHumansFinished) && !this.gameOver) {
+        if (this.finishers.length >= this.finishersNeeded && !this.gameOver) {
             this.gameOver = true;
-            this.playerWon = this.finishers[0].name; // Simplistic winner determination
             
             console.log("🏆 Race Complete! Top 3 finishers:");
             this.finishers.forEach((finisher, index) => {
                 console.log(`   ${index + 1}. ${finisher.name}`);
             });
-
-            // Clean up multiplayer room if in multiplayer mode
-            if (this.isMultiplayer && window.multiplayerManager) {
-                multiplayerManager.markRoomAsFinished();
-            }
 
             // Stop camera following
             this.cameras.main.stopFollow();
@@ -579,7 +528,7 @@ class GameScene extends Phaser.Scene {
             this.scene.stop('UIScene');
             this.scene.start('GameOverScene', { 
                 finishers: this.finishers,
-                totalRacers: totalRacersInGame
+                totalRacers: 1 + this.bots.length // Player + bots
             });
         }
     }
@@ -903,7 +852,7 @@ class GameScene extends Phaser.Scene {
         // Multiplayer synchronization
         this.updateMultiplayer(time, delta);
 
-        // Fall detection for local player
+        // Position Tracking
         // Fall detection
         if (this.player && !this.player.isFalling && this.player.sprite.y > this.fallDeathY) {
             this.player.onFall();
@@ -917,7 +866,6 @@ class GameScene extends Phaser.Scene {
             //     this.scene.start('GameOverScene', { winner: 'Bot' });
             // }
         }
-        // Fall detection for bots
         this.bots.forEach(bot => {
             if (bot && !bot.isFalling && bot.sprite.y > this.fallDeathY) {
                 bot.onFall();
@@ -931,16 +879,6 @@ class GameScene extends Phaser.Scene {
                 // }
             }
         });
-
-        // Fall detection for remote players (visual only, actual state from network)
-        if (this.isMultiplayer) {
-            Object.values(this.remotePlayers || {}).forEach(remotePlayer => {
-                if (remotePlayer.sprite && remotePlayer.sprite.visible && remotePlayer.sprite.y > this.fallDeathY + 50) { // Extra buffer
-                    // Visually hide, actual respawn handled by network state
-                    remotePlayer.sprite.setVisible(false);
-                }
-            });
-        }
         
     }
 
@@ -991,7 +929,7 @@ class GameScene extends Phaser.Scene {
         }
         
         // Clean up remote players
-        Object.values(this.remotePlayers || {}).forEach(remotePlayer => {
+        Object.values(this.remotePlayers).forEach(remotePlayer => {
             if (remotePlayer.sprite) remotePlayer.sprite.destroy();
             if (remotePlayer.nameTag) remotePlayer.nameTag.destroy();
         });
@@ -1302,16 +1240,16 @@ class GameScene extends Phaser.Scene {
         }
     }
 
-    async initializeMultiplayerCharacters(characterInitialY, roomId) {
+    async initializeMultiplayerCharacters(characterInitialY) {
         console.log('🌐 Initializing multiplayer characters...');
         console.log('🏠 Room players:', this.roomPlayers);
         
         // Initialize network synchronizer
         try {
-            this.networkSynchronizer = window.networkSynchronizer; // Use global instance
-            await this.networkSynchronizer.startSynchronization(roomId);
+            this.networkSynchronizer = new NetworkSynchronizer();
+            await this.networkSynchronizer.startSynchronization(multiplayerManager.roomId);
             
-            // Set up network event listeners (or ensure they are set up if global)
+            // Set up network event listeners
             this.networkSynchronizer.onNetworkEvent((eventType, data) => {
                 this.handleNetworkEvent(eventType, data);
             });
@@ -1324,182 +1262,156 @@ class GameScene extends Phaser.Scene {
         // Create remote player sprites for other players in the room
         const currentPlayerUid = playerAuth.getCurrentUser()?.uid;
         let botIndex = 0;
-        let humanPlayerCount = 0;
-
-        if (this.roomPlayers && typeof this.roomPlayers === 'object') {
-            Object.values(this.roomPlayers).forEach((playerData, index) => {
-                if (playerData.uid !== currentPlayerUid && !playerData.isBot) { // Only create for actual human remote players
-                    const remotePlayer = this.createRemotePlayer(playerData, characterInitialY + (humanPlayerCount * 20)); // Spread them out a bit
-                    this.remotePlayers[playerData.uid] = remotePlayer;
-                    console.log(`👥 Created remote player: ${playerData.displayName} (UID: ${playerData.uid})`);
-                    humanPlayerCount++;
-                } else if (playerData.uid === currentPlayerUid) {
-                    humanPlayerCount++;
-                }
-            });
-        } else {
-            console.warn("No roomPlayers data or invalid format for multiplayer character initialization.");
-        }
         
-        // Fill remaining slots with bots if needed, up to MAX_PLAYERS
-        const totalCharactersNeeded = GameConfig.MULTIPLAYER.MAX_PLAYERS;
-        const currentCharacters = humanPlayerCount; // Local player is part of roomPlayers
-        const botsNeeded = Math.max(0, totalCharactersNeeded - currentCharacters);
+        Object.values(this.roomPlayers).forEach((playerData, index) => {
+            if (playerData.uid !== currentPlayerUid) {
+                // Create remote player sprite
+                const remotePlayer = this.createRemotePlayer(playerData, characterInitialY + (index * 10));
+                this.remotePlayers[playerData.uid] = remotePlayer;
+                console.log(`👥 Created remote player: ${playerData.displayName}`);
+            }
+        });
+        
+        // Fill remaining slots with bots if needed
+        const totalPlayers = Object.keys(this.roomPlayers).length;
+        const botsNeeded = Math.max(0, 4 - totalPlayers); // Ensure 4 total characters
         
         for (let i = 0; i < botsNeeded; i++) {
             const personality = ['aggressive', 'cautious', 'erratic'][botIndex % 3];
-            // Offset bot initial X to avoid overlap with human players
-            const bot = new Bot(this, GameConfig.BOT_INITIAL_X + ((currentCharacters + i) * 70), characterInitialY, "bot_run_anim", GameConfig.BOT_SPEED_NORMAL, GameConfig.BOT_SPEED_BOOSTED, GameConfig.JUMP_VELOCITY, botIndex + 1, personality);
+            const bot = new Bot(this, GameConfig.BOT_INITIAL_X + ((totalPlayers + i) * 50), characterInitialY, "bot_run_anim", GameConfig.BOT_SPEED_NORMAL, GameConfig.BOT_SPEED_BOOSTED, GameConfig.JUMP_VELOCITY, botIndex + 1, personality);
             this.bots.push(bot);
             botIndex++;
-            console.log(`🤖 Created bot ${botIndex} (Personality: ${personality}) to fill slot. Total characters now: ${currentCharacters + botIndex}`);
+            console.log(`🤖 Created bot ${botIndex} to fill slot`);
         }
     }
 
     createRemotePlayer(playerData, yPosition) {
-        const remoteSprite = this.physics.add.sprite(GameConfig.PLAYER_INITIAL_X - 50, yPosition, "player_run_anim"); // Start slightly behind local player
+        // Create a sprite for the remote player with proper physics
+        const remoteSprite = this.physics.add.sprite(GameConfig.PLAYER_INITIAL_X + 100, yPosition, "player_run_anim");
         remoteSprite.setCollideWorldBounds(true);
-        remoteSprite.body.setSize(64, 64); // Match player/bot size
-        remoteSprite.body.setAllowGravity(true); // Use scene gravity
+        remoteSprite.body.setSize(32, 64);
+        remoteSprite.body.setGravityY(400); // Same gravity as other characters
         
+        // Set initial movement speed (will be overridden by network sync)
+        remoteSprite.body.setVelocityX(GameConfig.PLAYER_SPEED_NORMAL);
+        
+        // Start running animation
         if (remoteSprite.anims) {
-            remoteSprite.anims.play("player_running", true);
+            remoteSprite.anims.play("player_run_anim", true);
         }
         
-        const nameTag = this.add.text(remoteSprite.x, remoteSprite.y - 35, playerData.displayName, {
-            fontSize: '16px',
-            fill: '#aaffaa', // Light green for remote players
-            fontFamily: 'Arial',
-            align: 'center'
-        }).setOrigin(0.5, 1);
+        // Add name tag
+        const nameTag = this.add.text(remoteSprite.x, remoteSprite.y - 40, playerData.displayName, {
+            fontSize: '12px',
+            fill: '#00ff00', // Green for remote players
+            fontFamily: 'Arial'
+        }).setOrigin(0.5);
         
-        const remotePlayerObject = {
+        // Store player data
+        const remotePlayerData = {
             sprite: remoteSprite,
             nameTag: nameTag,
-            playerData: playerData, // Full player data from MultiplayerManager
+            playerData: playerData,
             lastUpdate: 0,
-            isFalling: false,
-            isFinished: false,
-            // Add other state tracking if needed, e.g., currentPowerup
+            isAlive: true,
+            collectedPowerupType: null,
+            shieldActive: false
         };
         
         console.log(`👥 Created remote player sprite for ${playerData.displayName} with physics body`);
-        return remotePlayerObject;
+        
+        return remotePlayerData;
     }
 
     handleNetworkEvent(eventType, data) {
-        // console.log(`GameScene received network event: ${eventType}`, data);
         switch (eventType) {
-            case 'players_updated': // This is likely the game state's 'players' object
-                this.updateRemotePlayerStates(data);
+            case 'players_updated':
+                this.updateRemotePlayerPositions(data);
                 break;
             case 'game_event':
                 this.handleRemoteGameEvent(data);
                 break;
             case 'game_starting':
-                console.log('🎮 Multiplayer game starting signal received in GameScene!');
-                // Countdown should already be handled by GameScene's own logic triggered by room status
+                console.log('🎮 Multiplayer game starting!');
+                break;
+            case 'game_playing':
+                console.log('🏁 Multiplayer game now playing!');
                 break;
         }
     }
 
-    updateRemotePlayerStates(allPlayersData) {
-        const currentPlayerUid = playerAuth.getCurrentUser()?.uid;
-
-        for (const uid in allPlayersData) {
-            if (uid === currentPlayerUid) continue; // Skip local player
-
-            const remotePlayerState = allPlayersData[uid];
-            let remotePlayerObject = this.remotePlayers[uid];
-
-            if (!remotePlayerObject && remotePlayerState.isAlive !== false) { // Player joined mid-game or was missed
-                console.warn(`Remote player ${uid} not found locally, creating now.`);
-                // Find their original player data from roomPlayers if possible
-                const originalPlayerData = this.roomPlayers[uid] || { uid: uid, displayName: remotePlayerState.displayName || `Player ${uid.substring(0,4)}` };
-                remotePlayerObject = this.createRemotePlayer(originalPlayerData, this.groundTopY - (64/2));
-                this.remotePlayers[uid] = remotePlayerObject;
+    updateRemotePlayerPositions(playersData) {
+        const currentTime = Date.now();
+        
+        Object.entries(playersData).forEach(([uid, playerState]) => {
+            const remotePlayer = this.remotePlayers[uid];
+            if (remotePlayer && playerState && currentTime - playerState.timestamp < 5000) {
+                // Update position with interpolation for smooth movement
+                this.interpolateRemotePlayer(remotePlayer, playerState);
+                remotePlayer.lastUpdate = currentTime;
             }
-            
-            if (remotePlayerObject && remotePlayerObject.sprite) {
-                const sprite = remotePlayerObject.sprite;
-                const nameTag = remotePlayerObject.nameTag;
+        });
+    }
 
-                // Interpolate position
-                this.physics.moveTo(sprite, remotePlayerState.x, remotePlayerState.y, null, 75); // 75ms to reach target
-
-                if (nameTag) {
-                    nameTag.setPosition(sprite.x, sprite.y - (sprite.displayHeight / 2) - 5);
-                }
-
-                // Update animation
-                if (remotePlayerState.animation && sprite.anims.currentAnim?.key !== remotePlayerState.animation) {
-                    sprite.play(remotePlayerState.animation, true);
-                }
-
-                // Handle visibility / falling
-                if (remotePlayerState.isAlive === false) {
-                    sprite.setVisible(false);
-                    if (nameTag) nameTag.setVisible(false);
-                    remotePlayerObject.isFalling = true;
-                } else {
-                    sprite.setVisible(true);
-                    if (nameTag) nameTag.setVisible(true);
-                    remotePlayerObject.isFalling = false;
-                }
-
-                // Handle finished state
-                if (remotePlayerState.isFinished && !remotePlayerObject.isFinished) {
-                    this.handleCharacterFinish(remotePlayerObject.sprite); // Pass sprite
-                }
+    interpolateRemotePlayer(remotePlayer, targetState) {
+        const sprite = remotePlayer.sprite;
+        const nameTag = remotePlayer.nameTag;
+        
+        // Simple interpolation - move towards target position
+        const lerpFactor = 0.3; // Adjust for smoothness vs responsiveness
+        
+        sprite.x = Phaser.Math.Linear(sprite.x, targetState.x, lerpFactor);
+        sprite.y = Phaser.Math.Linear(sprite.y, targetState.y, lerpFactor);
+        
+        // Update name tag position
+        nameTag.x = sprite.x;
+        nameTag.y = sprite.y - 40;
+        
+        // Update animation if provided
+        if (targetState.animation && sprite.anims) {
+            if (!sprite.anims.isPlaying || sprite.anims.currentAnim.key !== targetState.animation) {
+                sprite.anims.play(targetState.animation, true);
             }
+        }
+        
+        // Handle alive/dead state
+        if (targetState.isAlive !== undefined) {
+            sprite.setVisible(targetState.isAlive);
+            nameTag.setVisible(targetState.isAlive);
         }
     }
 
-    handleRemoteGameEvent(event) {
-        console.log('📡 GameScene handling remote game event:', event.type, event.data);
-        const targetPlayerUid = event.data?.uid || event.data?.playerUid; // Normalize UID field
-        const remotePlayer = this.remotePlayers[targetPlayerUid];
-
-        switch (event.type) {
+    handleRemoteGameEvent(eventData) {
+        console.log('📡 Received remote game event:', eventData.type);
+        
+        switch (eventData.type) {
             case 'powerup_collected':
-                if (remotePlayer && remotePlayer.sprite) {
-                    console.log(`✨ Remote player ${remotePlayer.playerData.displayName} collected ${event.data.powerupType}`);
-                    // Visual feedback for remote player collecting powerup (e.g., temporary glow or icon)
-                    // This is mostly for local player's awareness, actual effect handled by powerup deploy
-                }
+                // Handle remote player collecting powerup
                 break;
             case 'powerup_deployed':
-                if (remotePlayer && remotePlayer.sprite) {
-                    console.log(`💥 Remote player ${remotePlayer.playerData.displayName} deployed ${event.data.powerupType}`);
-                    // Apply visual effect of the powerup deployed by remote player
-                    // e.g., if lightning, find target and show lightning effect
-                    // This requires the event.data to contain necessary info (target, powerup details)
-                }
+                // Handle remote player deploying powerup
                 break;
-            case 'player_finished':
-                 if (remotePlayer && remotePlayer.sprite && !remotePlayer.isFinished) {
-                    this.handleCharacterFinish(remotePlayer.sprite); // Pass sprite
-                }
+            case 'character_finished':
+                // Handle remote player finishing race
                 break;
         }
     }
 
     // Override the update method to include multiplayer sync
     updateMultiplayer(time, delta) {
-        if (!this.isMultiplayer || !this.networkSynchronizer || !this.player || !this.player.sprite.body) return;
+        if (!this.isMultiplayer || !this.networkSynchronizer) return;
         
-        // Sync local player state periodically
-        if (time - (this.lastNetworkUpdate || 0) > (1000 / GameConfig.MULTIPLAYER.POSITION_SYNC_RATE)) {
+        // Sync local player position periodically
+        if (time - this.lastNetworkUpdate > 50) { // 20 times per second
             const playerState = {
                 x: this.player.sprite.x,
                 y: this.player.sprite.y,
                 velocityX: this.player.sprite.body.velocity.x,
                 velocityY: this.player.sprite.body.velocity.y,
-                animation: this.player.sprite.anims.currentAnim?.key || 'player_running',
-                isAlive: !this.player.isFalling && !this.player.isBlasted,
-                isFinished: this.isPlayerActuallyFinished,
-                // collectedPowerupType: this.player.collectedPowerupType, // Not needed for sync, deploy is an event
-                // shieldActive: this.player.shieldActive // Shield state can be part of player state if needed
+                animation: this.player.sprite.anims.currentAnim?.key || 'idle',
+                isAlive: !this.player.isBlasted,
+                powerupType: this.player.collectedPowerupType,
+                shieldActive: this.player.shieldActive
             };
             
             this.networkSynchronizer.updateLocalPlayerState(playerState);

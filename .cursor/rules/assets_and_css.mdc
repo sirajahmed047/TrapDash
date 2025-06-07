@@ -9,12 +9,22 @@ This guide outlines where to place visual assets and stylesheets for the `trapda
 
 *   **CSS Styling**:
     *   All CSS rules should be placed in `[css/style.css](mdc:css/style.css)`.
+    *   Include mobile-optimized styles for multiplayer UI components (minimum 44pt touch targets).
     *   If the styling becomes too complex, consider splitting it into multiple CSS files within the `[css/](mdc:css)` directory and importing them into `style.css` or linking them in `[index.html](mdc:index.html)`.
+    *   Responsive design considerations for various mobile screen sizes and orientations.
 
 *   **Assets**:
     *   The `[assets/](mdc:assets)` directory is the main container for all game assets.
     *   **Images**: All static images, spritesheets, and textures should be placed in the `[assets/images/](mdc:assets/images)` subdirectory.
         *   Examples: `player_sprite.png`, `obstacle_wall.png`, `background_tile.png`.
+        *   Multiplayer-specific assets: player identification icons, network status indicators, lobby UI elements.
     *   **Sounds**: All sound effects and music tracks should be placed in the `[assets/sounds/](mdc:assets/sounds)` subdirectory.
         *   Examples: `jump.wav`, `powerup_collect.mp3`, `background_music.ogg`.
+        *   Multiplayer-specific sounds: connection/disconnection alerts, lobby notifications.
     *   Create new subdirectories within `assets/` if needed for other types of assets (e.g., `assets/fonts/`, `assets/data/` for JSON files).
+
+*   **Multiplayer Asset Considerations**:
+    *   **Shared Asset Management**: Optimize asset loading for multiplayer sessions to minimize bandwidth usage.
+    *   **Mobile Optimization**: Ensure all assets are optimized for mobile devices (appropriate file sizes and formats).
+    *   **Network Efficiency**: Consider asset compression and caching strategies for mobile networks.
+    *   **Cross-Platform Compatibility**: Ensure assets work seamlessly in both web and mobile app contexts via CapacitorJS.

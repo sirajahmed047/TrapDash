@@ -75,7 +75,7 @@ class MainMenuScene extends Phaser.Scene {
             multiplayerManager.setSinglePlayerMode();
         }
         
-        this.scene.start('GameScene', { gameMode: 'singleplayer' }); // Pass gameMode
+        this.scene.start('GameScene', { gameMode: 'singleplayer' });
         this.scene.launch('UIScene'); // Launch UI scene alongside GameScene
     }
 
