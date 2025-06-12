@@ -56,6 +56,9 @@ class Player {
                 this.sprite.play('player_running', true);
             }
         }, this);
+
+        // === DOUBLE-JUMP IMPLEMENTATION ===
+        this.jumpCount = 0; // 0 = grounded, 1 = first jump used, 2 = mid-air jump used
     }
 
     startMoving() {
@@ -94,6 +97,8 @@ class Player {
         }
 
         if (this.sprite.body.onFloor()) {
+            // Reset double-jump counter when touching ground
+            this.jumpCount = 0;
             this.lastSafeX = this.sprite.x;
             this.lastSafeGroundSegment = null;
             if (this.scene.trackSegments) {
@@ -118,7 +123,7 @@ class Player {
             this.standingOnPlatform = null;
         }
 
-        // Handle continuous jumping with space bar
+        // Handle continuous jumping with space bar OR touch input
         const isOnFloorOrPlatform = this.sprite.body.onFloor() || 
                                    (this.sprite.body.blocked.down && Math.abs(this.sprite.body.velocity.y) < 10);
         
@@ -129,14 +134,24 @@ class Player {
             console.log(`🎮 Player jump attempt - onFloor: ${this.sprite.body.onFloor()}, blocked.down: ${this.sprite.body.blocked.down}, velocity.y: ${this.sprite.body.velocity.y.toFixed(1)}, canJump: ${canJump}, onPlatform: ${this.standingOnPlatform ? 'YES' : 'NO'}`);
         }
         
-        if (cursors.space.isDown && canJump) {
-            this.sprite.body.setVelocityY(this.jumpVelocity);
+        // Determine if a jump can be performed (ground or mid-air one extra time)
+        let canDoubleJump = false;
+        if (isOnFloorOrPlatform) {
+            canDoubleJump = this.jumpCount < 1; // First jump allowed
+        } else {
+            canDoubleJump = this.jumpCount < 2; // Allow one extra jump while airborne
+        }
+
+        // ENHANCED: Support both keyboard and touch input for jumping
+        const jumpInput = cursors.space.isDown || this.scene.touchJumpRequested;
+        
+        if (jumpInput && canDoubleJump) {
+            this.performJump();
             
-            // Play jump animation
-            this.sprite.play('player_jumping', true);
-            
-            // Create jump dust particle effect
-            this.createJumpDust();
+            // Reset touch jump request to prevent continuous jumping
+            if (this.scene.touchJumpRequested) {
+                this.scene.touchJumpRequested = false;
+            }
         }
 
         // Update glow position
@@ -181,6 +196,26 @@ class Player {
         dust.on('animationcomplete', () => {
             dust.destroy();
         });
+    }
+
+    // NEW: Centralized jump method for both keyboard and touch input
+    performJump() {
+        this.sprite.body.setVelocityY(this.jumpVelocity);
+        // Increment jump counter
+        if (typeof this.jumpCount === 'number') {
+            this.jumpCount += 1;
+        }
+        
+        // Play jump animation
+        this.sprite.play('player_jumping', true);
+        
+        // Create jump dust particle effect
+        this.createJumpDust();
+        
+        // Trigger visual feedback on mobile
+        if (this.scene.showTouchJumpFeedback) {
+            this.scene.showTouchJumpFeedback();
+        }
     }
 
     // Check if shield protects against attacks (lightning, shuriken, bomb)

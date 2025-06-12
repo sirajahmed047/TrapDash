@@ -20,36 +20,53 @@ class GameOverScene extends Phaser.Scene {
 
     create() {
         this.cameras.main.setBackgroundColor('#001122'); // Dark blue background
-        const centerX = this.cameras.main.width / 2;
-        const centerY = this.cameras.main.height / 2;
+        const cameraWidth = this.cameras.main.width;
+        const cameraHeight = this.cameras.main.height;
+        const centerX = cameraWidth / 2;
+        const centerY = cameraHeight / 2;
+
+        // === Responsive font scaling ===
+        const baseWidth = 800; // Matches GameConfig.GAME_WIDTH logical size
+        const scaleFactor = Phaser.Math.Clamp(cameraWidth / baseWidth, 0.6, 1); // Never shrink below 60% for readability
+
+        const titleFontSize = `${Math.round(54 * scaleFactor)}px`;
+        const buttonFontSize = `${Math.round(28 * scaleFactor)}px`;
+        const podiumNumberFontSize = `${Math.round(24 * scaleFactor)}px`;
+        const finisherFontSize = `${Math.round(18 * scaleFactor)}px`;
 
         // Title
         const titleStyle = { 
-            fontSize: '54px', 
+            fontSize: titleFontSize,
             fill: '#FFD700', 
             stroke: '#000000', 
             strokeThickness: 3,
             fontFamily: 'Arial Black',
             align: 'center' 
         };
-        this.add.text(centerX, 80, '🏆 RACE RESULTS 🏆', titleStyle).setOrigin(0.5);
+        this.add.text(centerX, 80 * scaleFactor, '🏆 RACE RESULTS 🏆', titleStyle).setOrigin(0.5);
 
         // Create podium display
-        this.createPodium(centerX, centerY);
+        this.createPodium(centerX, centerY, {
+            scaleFactor,
+            podiumNumberFontSize,
+            finisherFontSize
+        });
 
         // Buttons
         const buttonStyle = { 
-            fontSize: '28px', 
+            fontSize: buttonFontSize,
             fill: '#ffffff', 
             backgroundColor: '#2d5aa0', 
-            padding: { x: 20, y: 12 }, 
+            padding: { x: 20 * scaleFactor, y: 12 * scaleFactor }, 
             borderRadius: 8,
             align: 'center' 
         };
         const buttonHoverStyle = { fill: '#FFD700', backgroundColor: '#1a3d73' };
 
+        const buttonOffsetX = 120 * scaleFactor;
+        const buttonOffsetY = 180 * scaleFactor;
         // Retry Button
-        const retryButton = this.add.text(centerX - 100, centerY + 180, '🔄 Race Again', buttonStyle).setOrigin(0.5).setInteractive();
+        const retryButton = this.add.text(centerX - buttonOffsetX, centerY + buttonOffsetY, '🔄 Race', buttonStyle).setOrigin(0.5).setInteractive();
         retryButton.on('pointerdown', () => {
             this.scene.stop('UIScene');
             this.scene.start('GameScene');
@@ -59,7 +76,7 @@ class GameOverScene extends Phaser.Scene {
         retryButton.on('pointerout', () => retryButton.setStyle(buttonStyle));
 
         // Main Menu Button
-        const mainMenuButton = this.add.text(centerX + 100, centerY + 180, '🏠 Main Menu', buttonStyle).setOrigin(0.5).setInteractive();
+        const mainMenuButton = this.add.text(centerX + buttonOffsetX, centerY + buttonOffsetY, '🏠 Menu', buttonStyle).setOrigin(0.5).setInteractive();
         mainMenuButton.on('pointerdown', () => {
             this.scene.start('MainMenuScene');
         });
@@ -67,7 +84,8 @@ class GameOverScene extends Phaser.Scene {
         mainMenuButton.on('pointerout', () => mainMenuButton.setStyle(buttonStyle));
     }
 
-    createPodium(centerX, centerY) {
+    createPodium(centerX, centerY, uiConfig) {
+        const { scaleFactor, podiumNumberFontSize, finisherFontSize } = uiConfig;
         const podiumY = centerY - 20;
         
         // Podium positions (2nd, 1st, 3rd for visual appeal)
@@ -84,7 +102,7 @@ class GameOverScene extends Phaser.Scene {
             
             // Place number on podium
             this.add.text(pos.x, pos.y + pos.height/2, pos.place.toString(), {
-                fontSize: '24px',
+                fontSize: podiumNumberFontSize,
                 fill: '#000000',
                 fontFamily: 'Arial Black'
             }).setOrigin(0.5);
@@ -96,9 +114,9 @@ class GameOverScene extends Phaser.Scene {
                 const finisher = this.finishers[pos.place - 1];
                 
                 // Medal and name
-                const medalStyle = { fontSize: '32px' };
+                const medalStyle = { fontSize: `${Math.round(32 * scaleFactor)}px` };
                 const nameStyle = {
-                    fontSize: '18px',
+                    fontSize: finisherFontSize,
                     fill: finisher.isPlayer ? '#00FF00' : '#FF6B6B',
                     fontFamily: 'Arial Black',
                     align: 'center',
@@ -152,8 +170,8 @@ class GameOverScene extends Phaser.Scene {
                 othersText += `${i + 1}. ${finisher.name}\n`;
             }
             
-            this.add.text(centerX, centerY + 100, othersText, {
-                fontSize: '16px',
+            this.add.text(centerX, centerY + 100 * scaleFactor, othersText, {
+                fontSize: `${Math.round(16 * scaleFactor)}px`,
                 fill: '#CCCCCC',
                 align: 'center',
                 lineSpacing: 5
@@ -178,8 +196,8 @@ class GameOverScene extends Phaser.Scene {
                 resultColor = '#FF6B6B';
             }
             
-            this.add.text(centerX, 140, resultText, {
-                fontSize: '20px',
+            this.add.text(centerX, 140 * scaleFactor, resultText, {
+                fontSize: `${Math.round(20 * scaleFactor)}px`,
                 fill: resultColor,
                 align: 'center',
                 stroke: '#000000',

@@ -10,6 +10,13 @@ body {
 
 canvas {
     display: block; /* Remove extra space below canvas */
+    width: 100%; /* Ensure canvas fills the container width */
+    height: 100%; /* Ensure canvas fills the container height */
+}
+
+#game-container {
+    width: 100vw; /* Full viewport width */
+    height: 100vh; /* Full viewport height */
 }
 
 #game-container canvas {

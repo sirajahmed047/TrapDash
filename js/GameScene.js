@@ -228,6 +228,9 @@ class GameScene extends Phaser.Scene {
         // R key for restart is primarily for GameOverScene, but can be listened to here for debugging if needed.
         // this.restartKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
 
+        // ===== MOBILE TOUCH INPUT SETUP =====
+        this.setupMobileTouchInput();
+
         // The game effectively starts as soon as this scene is created.
         // MainMenuScene handles the "Press SPACE to start"
         // this.gameStarted = true; 
@@ -1113,5 +1116,107 @@ class GameScene extends Phaser.Scene {
             const bot = new Bot(this, GameConfig.BOT_INITIAL_X + (i * 50), characterInitialY, "bot_run_anim", GameConfig.BOT_SPEED_NORMAL, GameConfig.BOT_SPEED_BOOSTED, GameConfig.JUMP_VELOCITY, i + 1, personality);
             this.bots.push(bot);
         }
+    }
+
+    // ===== MOBILE TOUCH INPUT METHODS =====
+
+    setupMobileTouchInput() {
+        // Initialize touch input state
+        this.touchJumpRequested = false;
+        this.touchFeedbackOverlay = null;
+        
+        // Set up pointer (touch/mouse) input for jump
+        this.input.on('pointerdown', (pointer) => {
+            this.handleTouchJump(pointer);
+        });
+        
+        console.log('📱 Mobile touch input initialized - tap anywhere to jump');
+    }
+
+    handleTouchJump(pointer) {
+        // Only handle touch input during active gameplay
+        if (!this.gameStarted || this.gameOver) return;
+        
+        // Check if touch is on a UI element (we'll exclude the power-up button area)
+        const isUITouch = this.isTouchOnUI(pointer);
+        if (isUITouch) return;
+        
+        // Request jump on next update
+        this.touchJumpRequested = true;
+        
+        console.log('👆 Touch jump requested');
+    }
+
+    isTouchOnUI(pointer) {
+        // Get UIScene to check if touch is on UI elements
+        const uiScene = this.scene.get('UIScene');
+        if (!uiScene) return false;
+        
+        // Define UI exclusion zones (where touch should NOT trigger jump)
+        const exclusionZones = [];
+        
+        // Power-up button area (will be updated when we modify UIScene)
+        const buttonConfig = GameConfig.MOBILE_POWERUP_BUTTON;
+        const buttonX = this.configWidth - buttonConfig.WIDTH - buttonConfig.MARGIN_X;
+        const buttonY = this.configHeight - buttonConfig.HEIGHT - buttonConfig.MARGIN_Y;
+        
+        exclusionZones.push({
+            x: buttonX - 10, // Add some padding
+            y: buttonY - 10,
+            width: buttonConfig.WIDTH + 20,
+            height: buttonConfig.HEIGHT + 20
+        });
+        
+        // Position tracking area (top-left)
+        exclusionZones.push({
+            x: 0,
+            y: 0,
+            width: 200,
+            height: 40
+        });
+        
+        // Check if touch is in any exclusion zone
+        for (const zone of exclusionZones) {
+            if (pointer.x >= zone.x && pointer.x <= zone.x + zone.width &&
+                pointer.y >= zone.y && pointer.y <= zone.y + zone.height) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    showTouchJumpFeedback() {
+        // Create visual feedback for touch jump
+        if (this.touchFeedbackOverlay) {
+            this.touchFeedbackOverlay.destroy();
+        }
+        
+        // Create a subtle overlay effect
+        this.touchFeedbackOverlay = this.add.rectangle(
+            this.configWidth / 2, 
+            this.configHeight / 2, 
+            this.configWidth, 
+            this.configHeight, 
+            0xffffff, 
+            GameConfig.MOBILE_TOUCH_FEEDBACK.JUMP_FEEDBACK_ALPHA
+        );
+        
+        this.touchFeedbackOverlay.setScrollFactor(0);
+        this.touchFeedbackOverlay.setDepth(1000); // High depth to appear above everything
+        
+        // Fade out the feedback
+        this.tweens.add({
+            targets: this.touchFeedbackOverlay,
+            alpha: 0,
+            duration: GameConfig.MOBILE_TOUCH_FEEDBACK.JUMP_FEEDBACK_DURATION,
+            ease: 'Power2',
+            onComplete: () => {
+                if (this.touchFeedbackOverlay) {
+                    this.touchFeedbackOverlay.destroy();
+                    this.touchFeedbackOverlay = null;
+                }
+            }
+        });
     }
 }

@@ -67,6 +67,9 @@ class Bot {
                 this.sprite.play('bot_running', true);
             }
         }, this);
+
+        // === DOUBLE-JUMP IMPLEMENTATION ===
+        this.jumpCount = 0; // 0 = grounded, 1 = first jump, 2 = second jump (air)
     }
 
     // NEW: Define personality traits and behaviors
@@ -131,6 +134,8 @@ class Bot {
         if (this.sprite.body.onFloor() && this.sprite.anims && 
             this.sprite.anims.currentAnim && this.sprite.anims.currentAnim.key !== 'bot_running') {
             this.sprite.play('bot_running', true);
+            // Reset jump counter when touching ground
+            this.jumpCount = 0;
         }
 
         // Update glow position
@@ -267,53 +272,35 @@ class Bot {
             });
         }
 
-        // 3. Apply personality-based decision making
+        // 3. Apply personality-based decision making (with mistake handling)
         if (shouldBotJump) {
-            // Check for mistakes based on personality
             const shouldMakeMistake = Math.random() < this.personalityTraits.mistakeChance;
-            
+
             if (shouldMakeMistake) {
-                // DEBUG: Log mistake occurrence
-                console.log(`💥 ${this.botId} is making a mistake! (chance: ${(this.personalityTraits.mistakeChance * 100).toFixed(1)}%)`);
-                
-                // Make a "mistake" - sometimes don't jump, sometimes jump too early/late
+                // Bot may decide to cancel or mistime jump
                 const mistakeType = Math.random();
                 if (mistakeType < 0.3) {
-                    // Don't jump when should (30% of mistakes)
-                    console.log(`🚫 ${this.botId} mistake: NOT jumping when should!`);
+                    // Cancel jump
                     shouldBotJump = false;
                 } else if (mistakeType < 0.6) {
-                    // Jump too early (30% of mistakes) - reduce lookahead
-                    const earlyJumpChance = Math.random() < 0.7; // 70% chance of early jump
-                    console.log(`⏰ ${this.botId} mistake: Jump timing error! Will jump: ${earlyJumpChance}`);
-                    shouldBotJump = earlyJumpChance;
-                } else {
-                    console.log(`🤷 ${this.botId} mistake: Context error but jumping normally`);
+                    // Early or late jump chance – re-roll outcome
+                    shouldBotJump = Math.random() < 0.7;
                 }
-                // Otherwise jump normally but it's still considered a "mistake context"
-            }
-        } else if (this.personality === 'erratic' && this.mistakeTimer > 3000) { // Every 3 seconds, check for random jump (increased from 2)
-            // DEBUG: Log erratic bot timer check
-            console.log(`🎲 ${this.botId} checking for random jump (timer: ${this.mistakeTimer.toFixed(0)}ms)`);
-            
-            // Erratic bots sometimes jump randomly
-            if (Math.random() < 0.08) { // 8% chance every 3 seconds (reduced from 10% every 2s)
-                console.log(`🤪 ${this.botId} RANDOM JUMP!`);
-                shouldBotJump = true;
-                this.mistakeTimer = 0; // Reset timer
             }
         }
 
-        if (shouldBotJump) {
-            // DEBUG: Log jump with reason
-            console.log(`🦘 ${this.botId} JUMPING! (personality: ${this.personality})`);
-            
-            this.sprite.body.setVelocityY(this.jumpVelocity);
-            this.lastJumpTime = this.scene.time.now;
-            // Play jump animation
-            this.sprite.play('bot_jumping', true);
-            // Create jump dust
-            this.createJumpDust();
+        // Erratic personality: occasional random jumps if not already jumping
+        if (!shouldBotJump && this.personality === 'erratic' && this.mistakeTimer > 3000) {
+            if (Math.random() < 0.08) {
+                shouldBotJump = true;
+                this.mistakeTimer = 0;
+            }
+        }
+
+        // Execute jump if final decision is true and we have jumps left
+        if (shouldBotJump && this.jumpCount < 2) {
+            console.log(`🦘 ${this.botId} JUMP! (${this.jumpCount + 1}/2)`);
+            this.performJump();
         }
     }
     
@@ -347,12 +334,8 @@ class Bot {
         const canReactiveJump = this.sprite.body.onFloor() || 
                               (this.sprite.body.blocked.down && Math.abs(this.sprite.body.velocity.y) < 10);
 
-        if (canReactiveJump) {
-            this.sprite.body.setVelocityY(this.jumpVelocity);
-            // Play jump animation
-            this.sprite.play('bot_jumping', true);
-            // Create jump dust
-            this.createJumpDust();
+        if (canReactiveJump && this.jumpCount < 2) {
+            this.performJump();
             
             // Add camera shake on hit
             if (this.scene.shakeCamera) {
@@ -785,6 +768,18 @@ class Bot {
             this.shieldAnimationSprite = null;
             console.log(`🛡️ Shield animation removed for ${this.name || `Bot ${this.botId}`}`);
         }
+    }
+
+    performJump() {
+        this.sprite.body.setVelocityY(this.jumpVelocity);
+        this.lastJumpTime = this.scene.time.now;
+
+        // Increment jump counter
+        if (typeof this.jumpCount === 'number') this.jumpCount += 1;
+
+        // Play animation and dust
+        if (this.sprite.anims) this.sprite.play('bot_jumping', true);
+        this.createJumpDust();
     }
 }
 

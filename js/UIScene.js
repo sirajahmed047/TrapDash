@@ -1,6 +1,9 @@
 class UIScene extends Phaser.Scene {
     constructor() {
         super({ key: 'UIScene' });
+        // Track last power-up button state for responsive repositioning
+        this.lastPowerupButtonText = 'Power-up: None';
+        this.lastPowerupButtonActive = false;
     }
 
     preload() {
@@ -25,6 +28,9 @@ class UIScene extends Phaser.Scene {
 
         // Create initial powerup button
         this.createPowerupButton();
+
+        // Listen for game resize events to reposition UI elements
+        this.scale.on('resize', this.handleResize, this);
     }
 
     setupGameSceneConnection() {
@@ -79,22 +85,42 @@ class UIScene extends Phaser.Scene {
             this.powerupButton.destroy();
         }
 
-        this.powerupButton = this.add.text(this.cameras.main.width - 150, 10, 'Power-up: None', {
+        // MOBILE-OPTIMIZED POSITIONING: Bottom-right for thumb accessibility
+        const buttonConfig = GameConfig.MOBILE_POWERUP_BUTTON;
+        let buttonX = this.cameras.main.width - buttonConfig.WIDTH - buttonConfig.MARGIN_X;
+        if (buttonX < buttonConfig.MARGIN_X) buttonX = buttonConfig.MARGIN_X;
+        const buttonY = this.cameras.main.height - buttonConfig.HEIGHT - buttonConfig.MARGIN_Y;
+
+        this.powerupButton = this.add.text(buttonX, buttonY, 'Power-up: None', {
             fontFamily: 'Arial',
-            fontSize: GameConfig.UI_FONT_SIZE_SMALL,
+            fontSize: buttonConfig.FONT_SIZE, // Larger font for mobile
             fill: '#cccccc', // Greyed out initially
             backgroundColor: GameConfig.UI_BUTTON_COLOR,
-            padding: { left: 10, right: 10, top: 5, bottom: 5 }
+            padding: { left: 15, right: 15, top: 12, bottom: 12 }, // Larger padding for touch
+            align: 'center'
         }).setScrollFactor(0).setOrigin(0, 0);
+
+        // Ensure minimum touch target size
+        const minSize = GameConfig.MOBILE_MIN_TOUCH_TARGET;
+        if (this.powerupButton.width < minSize) {
+            this.powerupButton.setPadding(20, 12, 20, 12);
+        }
+        if (this.powerupButton.height < minSize) {
+            this.powerupButton.setPadding(15, 18, 15, 18);
+        }
 
         // Initially not interactive
         this.powerupButton.disableInteractive();
 
-        // Initial powerup button created
+        console.log(`📱 Mobile power-up button positioned at (${buttonX}, ${buttonY}) with size ${this.powerupButton.width}x${this.powerupButton.height}`);
     }
 
     // Update powerup button by recreating it (avoids setText issues)
     updatePowerupButton(text, isActive) {
+        // Store state for future repositioning (e.g., on resize)
+        this.lastPowerupButtonText = text;
+        this.lastPowerupButtonActive = isActive;
+
         // Defensive check: ensure cameras are ready
         if (!this.cameras || !this.cameras.main) {
             console.warn("UIScene: Cameras not ready, delaying button update");
@@ -104,8 +130,11 @@ class UIScene extends Phaser.Scene {
             return;
         }
 
-        const buttonX = this.cameras.main.width - 150;
-        const buttonY = 10;
+        // MOBILE-OPTIMIZED POSITIONING: Bottom-right for thumb accessibility
+        const buttonConfig = GameConfig.MOBILE_POWERUP_BUTTON;
+        let buttonX = this.cameras.main.width - buttonConfig.WIDTH - buttonConfig.MARGIN_X;
+        if (buttonX < buttonConfig.MARGIN_X) buttonX = buttonConfig.MARGIN_X;
+        const buttonY = this.cameras.main.height - buttonConfig.HEIGHT - buttonConfig.MARGIN_Y;
 
         // Destroy existing button
         if (this.powerupButton) {
@@ -115,14 +144,27 @@ class UIScene extends Phaser.Scene {
         // Create new button with updated text and state
         this.powerupButton = this.add.text(buttonX, buttonY, text, {
             fontFamily: 'Arial',
-            fontSize: GameConfig.UI_FONT_SIZE_SMALL,
+            fontSize: buttonConfig.FONT_SIZE, // Mobile-optimized font size
             fill: isActive ? GameConfig.UI_FONT_COLOR : '#cccccc',
-            backgroundColor: GameConfig.UI_BUTTON_COLOR,
-            padding: { left: 10, right: 10, top: 5, bottom: 5 }
+            backgroundColor: isActive ? GameConfig.UI_BUTTON_COLOR : '#444444',
+            padding: { left: 15, right: 15, top: 12, bottom: 12 }, // Touch-friendly padding
+            align: 'center'
         }).setScrollFactor(0).setOrigin(0, 0);
+
+        // Ensure minimum touch target size
+        const minSize = GameConfig.MOBILE_MIN_TOUCH_TARGET;
+        if (this.powerupButton.width < minSize) {
+            this.powerupButton.setPadding(20, 12, 20, 12);
+        }
+        if (this.powerupButton.height < minSize) {
+            this.powerupButton.setPadding(15, 18, 15, 18);
+        }
 
         if (isActive) {
             this.powerupButton.setInteractive({ useHandCursor: true });
+            
+            // Add mobile touch feedback for button
+            this.addMobileButtonFeedback(this.powerupButton);
             
             // Add event handlers for active button
             const gameScene = this.scene.get('GameScene');
@@ -143,7 +185,22 @@ class UIScene extends Phaser.Scene {
             this.powerupButton.disableInteractive();
         }
 
-        // Button updated successfully
+        console.log(`📱 Mobile power-up button updated: "${text}" (active: ${isActive})`);
+    }
+
+    // NEW: Add mobile touch feedback to buttons
+    addMobileButtonFeedback(button) {
+        button.on('pointerdown', () => {
+            // Scale down slightly when pressed
+            this.tweens.add({
+                targets: button,
+                scaleX: GameConfig.MOBILE_TOUCH_FEEDBACK.BUTTON_PRESS_SCALE,
+                scaleY: GameConfig.MOBILE_TOUCH_FEEDBACK.BUTTON_PRESS_SCALE,
+                duration: GameConfig.MOBILE_TOUCH_FEEDBACK.BUTTON_PRESS_DURATION,
+                ease: 'Power2',
+                yoyo: true
+            });
+        });
     }
 
     // Helper method to recreate the button if needed (keeping for backward compatibility)
@@ -204,5 +261,18 @@ class UIScene extends Phaser.Scene {
             case 3: return 'rd';
             default: return 'th';
         }
+    }
+
+    // Handle game resize events to keep UI correctly positioned
+    handleResize(gameSize) {
+        if (!gameSize) {
+            return;
+        }
+
+        // Reposition the position tracking text (fixed offset from top-left)
+        this.positionText.setPosition(10, 10);
+
+        // Recreate / reposition the power-up button using the stored state
+        this.updatePowerupButton(this.lastPowerupButtonText, this.lastPowerupButtonActive);
     }
 } 

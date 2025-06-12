@@ -29,6 +29,9 @@ class MainMenuScene extends Phaser.Scene {
             .on('pointerover', () => singlePlayerBtn.setFillStyle(0x66BB6A))
             .on('pointerout', () => singlePlayerBtn.setFillStyle(0x4CAF50));
         
+        // Add mobile touch feedback
+        this.addMobileTouchFeedback(singlePlayerBtn);
+        
         this.add.text(centerX, centerY - 40, 'Single Player', {
             fontSize: '20px',
             fill: '#ffffff',
@@ -41,6 +44,9 @@ class MainMenuScene extends Phaser.Scene {
             .on('pointerdown', () => this.showComingSoonMessage()) // Show message instead of starting multiplayer
             .on('pointerover', () => multiplayerBtn.setFillStyle(0x777777)) // Slightly lighter gray on hover
             .on('pointerout', () => multiplayerBtn.setFillStyle(0x666666));
+        
+        // Add mobile touch feedback (even for disabled button)
+        this.addMobileTouchFeedback(multiplayerBtn);
         
         this.add.text(centerX, centerY + 20, 'Multiplayer', {
             fontSize: '20px',
@@ -72,6 +78,44 @@ class MainMenuScene extends Phaser.Scene {
     startSinglePlayer() {
         this.scene.start('GameScene', { gameMode: 'singleplayer' }); // Pass gameMode
         this.scene.launch('UIScene'); // Launch UI scene alongside GameScene
+    }
+
+    showComingSoonMessage() {
+        // Create temporary "Coming Soon" message
+        const message = this.add.text(this.cameras.main.width / 2, this.cameras.main.height / 2 + 100, 
+            'Multiplayer Coming Soon!', {
+            fontSize: '24px',
+            fill: '#FFD700',
+            fontFamily: 'Arial',
+            stroke: '#000000',
+            strokeThickness: 2
+        }).setOrigin(0.5);
+
+        // Fade out the message after 3 seconds
+        this.tweens.add({
+            targets: message,
+            alpha: 0,
+            duration: 3000,
+            ease: 'Power2',
+            onComplete: () => {
+                message.destroy();
+            }
+        });
+    }
+
+    // NEW: Add mobile touch feedback to buttons
+    addMobileTouchFeedback(button) {
+        button.on('pointerdown', () => {
+            // Scale down slightly when pressed
+            this.tweens.add({
+                targets: button,
+                scaleX: 0.95,
+                scaleY: 0.95,
+                duration: 100,
+                ease: 'Power2',
+                yoyo: true
+            });
+        });
     }
 
     update() {

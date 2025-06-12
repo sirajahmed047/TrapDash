@@ -49,6 +49,36 @@ const GameConfig = {
     // Moving Obstacles Configuration
     MOVING_PLATFORM_COLOR_VERTICAL: 0x8B4513,   // Brown for vertical platforms
     MOVING_PLATFORM_COLOR_HORIZONTAL: 0x654321, // Darker brown for horizontal platforms
+    
+    // ===== MOBILE TOUCH INTERFACE CONFIGURATION =====
+    
+    // Minimum touch target size (44pt iOS/Android guideline = ~58px at 1x scale)
+    MOBILE_MIN_TOUCH_TARGET: 58,
+    
+    // Power-up button configuration for mobile
+    MOBILE_POWERUP_BUTTON: {
+        WIDTH: 80,                    // Button width
+        HEIGHT: 60,                   // Button height  
+        MARGIN_X: 20,                 // Distance from screen edge
+        MARGIN_Y: 20,                 // Distance from screen bottom
+        FONT_SIZE: '18px',            // Larger font for mobile
+        BORDER_RADIUS: 8,             // Rounded corners
+        POSITION: 'bottom-right'      // Position on screen
+    },
+    
+    // Touch feedback configuration
+    MOBILE_TOUCH_FEEDBACK: {
+        JUMP_FEEDBACK_DURATION: 150,  // Visual feedback duration (ms)
+        JUMP_FEEDBACK_ALPHA: 0.3,     // Feedback overlay alpha
+        BUTTON_PRESS_SCALE: 0.95,     // Button scale when pressed
+        BUTTON_PRESS_DURATION: 100    // Button press animation duration
+    },
+    
+    // Screen size breakpoints for responsive design
+    MOBILE_BREAKPOINTS: {
+        SMALL_SCREEN_WIDTH: 480,      // Small phone threshold
+        LARGE_SCREEN_WIDTH: 768       // Tablet threshold
+    }
 };
 // Make it available globally if not using modules
 // window.GameConfig = GameConfig; // Or handle via script loading order
